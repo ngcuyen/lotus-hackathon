@@ -183,11 +183,12 @@ export default function App() {
     <div className="h-screen flex flex-col relative" style={{ backgroundColor: "var(--scifi-bg)" }}>
         {/* ─── Top Bar ─── */}
         <header
-        className="relative z-10 flex items-center justify-between px-6 py-2.5"
+        className="relative flex items-center justify-between px-6 py-2.5"
         style={{
           borderBottom: "1px solid rgba(0, 212, 255, 0.2)",
           backgroundImage: "linear-gradient(rgba(0, 212, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 212, 255, 0.02) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
+          zIndex: 50,
         }}
       >
         <div className="flex items-center gap-3">

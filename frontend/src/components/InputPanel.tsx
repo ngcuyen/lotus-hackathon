@@ -12,7 +12,9 @@ export function InputPanel({ onCapture, onGenerate, style }: InputPanelProps) {
     <div
       className="h-full w-full flex flex-col"
       style={{
-        backgroundColor: "var(--scifi-bg)",
+        backgroundColor: "rgba(17, 24, 39, 0.6)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         borderRight: "1px solid rgba(0, 212, 255, 0.2)",
       }}
     >

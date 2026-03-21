@@ -25,7 +25,9 @@ export function PreviewPanel({
     <div
       className="h-full w-full flex flex-col"
       style={{
-        backgroundColor: "var(--scifi-bg)",
+        backgroundColor: "rgba(17, 24, 39, 0.5)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
       }}
     >
       {/* Preview Header */}
