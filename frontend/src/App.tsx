@@ -17,6 +17,7 @@ export default function App() {
   const [sketchImage, setSketchImage] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState("modern");
+  const [selectedPurpose, setSelectedPurpose] = useState<string | null>(null);
   const [showCustomStylePopover, setShowCustomStylePopover] = useState(false);
   const [customStyles, setCustomStyles] = useState<any[]>([]);
   const [editMode, setEditMode] = useState(false);
@@ -41,6 +42,21 @@ export default function App() {
   ];
 
   const STYLES = [...BASE_STYLES, ...customStyles];
+
+  const PURPOSES = [
+    { id: "landing",   name: "Landing" },
+    { id: "portfolio", name: "Portfolio" },
+    { id: "webapp",    name: "Web App" },
+    { id: "poster",    name: "Poster" },
+    { id: "dashboard", name: "Dashboard" },
+    { id: "ecommerce", name: "Shop" },
+    { id: "form",      name: "Form" },
+    { id: "blog",      name: "Blog" },
+    { id: "chat",      name: "Chat" },
+    { id: "game",      name: "Game" },
+    { id: "mobile",    name: "Mobile" },
+    { id: "admin",     name: "Admin" },
+  ];
 
   // Initialize hook first
   const { generate, loadMockData, result, status, error, latency, reset } = useSketchToApp();
@@ -67,7 +83,7 @@ export default function App() {
   const handleModify = useCallback(
     (modification: string) => {
       if (sketchImage && result) {
-        generate(sketchImage, modification, selectedStyle);
+        generate(sketchImage, modification, selectedStyle, selectedPurpose ?? undefined);
         setSelectedElement(null);
       }
     },
@@ -84,7 +100,7 @@ export default function App() {
         else if (deltaY < 0) direction.push(`${Math.abs(deltaY)}px up`);
 
         const modification = `Move the ${element.tagName.toLowerCase()} ${direction.join(' and ')}`;
-        generate(sketchImage, modification, selectedStyle);
+        generate(sketchImage, modification, selectedStyle, selectedPurpose ?? undefined);
         setSelectedElement(null);
       }
     },
@@ -94,75 +110,9 @@ export default function App() {
   const handleCapture = useCallback(
     (imageBase64: string) => {
       setSketchImage(imageBase64);
-
-      // Mock data for testing UI (remove when backend is ready)
-      const mockResult = {
-        component: `import { useState } from 'react';
-
-export default function App() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-sm text-gray-500">Sign in to your account</p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              />
-            </div>
-
-            <button className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 transition-all shadow-lg">
-              Sign In
-            </button>
-
-            <p className="text-center text-sm text-blue-600 hover:underline cursor-pointer">
-              Forgot password?
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}`,
-        description: "Login form with email and password inputs"
-      };
-
-      // Simulate processing delay
-      setTimeout(() => {
-        // @ts-ignore - accessing internal state for mock
-        if (result === null) {
-          // You can manually set this in DevTools or use real API
-          console.log("Using mock data. To use real API, start backend and call generate()");
-          // Uncomment when backend is ready:
-          // generate(imageBase64, undefined, selectedStyle);
-        }
-      }, 100);
+      generate(imageBase64, undefined, selectedStyle, selectedPurpose ?? undefined);
     },
-    [generate, selectedStyle, result]
+    [generate, selectedStyle]
   );
 
   const handleReset = useCallback(() => {
@@ -175,7 +125,7 @@ export default function App() {
 
   const handleRegenerate = useCallback(() => {
     if (sketchImage) {
-      generate(sketchImage, undefined, selectedStyle);
+      generate(sketchImage, undefined, selectedStyle, selectedPurpose ?? undefined);
     }
   }, [sketchImage, generate, selectedStyle]);
 
@@ -408,13 +358,16 @@ export default function App() {
           leftPanel={
             <InputPanel
               onCapture={handleCapture}
-              onGenerate={(image, prompt) => generate(image, prompt, selectedStyle)}
-              style={selectedStyle}
+              sketchImage={sketchImage}
+              purposes={PURPOSES}
+              selectedPurpose={selectedPurpose}
+              onSelectPurpose={setSelectedPurpose}
             />
           }
           centerPanel={
             <PreviewPanel
               result={result}
+              status={status}
               editMode={editMode}
               selectedElement={selectedElement}
               onElementSelected={handleElementSelected}

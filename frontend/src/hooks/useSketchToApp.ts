@@ -10,7 +10,7 @@ interface Latency {
 }
 
 interface UseSketchToAppReturn {
-  generate: (imageBase64: string, modification?: string, style?: string) => Promise<void>;
+  generate: (imageBase64: string, modification?: string, style?: string, purpose?: string) => Promise<void>;
   loadMockData: () => void;
   result: GenerateResponse | null;
   status: Status;
@@ -33,11 +33,11 @@ export function useSketchToApp(): UseSketchToAppReturn {
   const [latency, setLatency] = useState<Latency | null>(null);
   const previousCodeRef = useRef<string | null>(null);
 
-  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string) => {
+  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string, purpose?: string) => {
     setStatus("processing");
     setError(null);
     const startTime = performance.now();
-    console.log("[1/4] Starting generation, image size:", imageBase64.length, "chars, style:", style);
+    console.log("[1/4] Starting generation, image size:", imageBase64.length, "chars, style:", style, "purpose:", purpose);
 
     try {
       console.log("[2/4] Calling API...");
@@ -46,6 +46,7 @@ export function useSketchToApp(): UseSketchToAppReturn {
         previous_code: previousCodeRef.current || undefined,
         modification,
         style,
+        purpose,
       });
 
       const aiTime = performance.now() - startTime;

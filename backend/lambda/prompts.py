@@ -89,9 +89,28 @@ OUTPUT FORMAT (strict JSON, no markdown wrapping):
 """ + '{"component": "import { useState } from \\"react\\";\\nexport default function App() { ... }", "description": "Brief description"}'
 
 
-def get_system_prompt(style="modern"):
+PURPOSE_INTENTS = {
+    "landing": "a marketing landing page with hero section, features grid, CTA buttons, testimonials, and footer",
+    "portfolio": "a personal portfolio/CV with hero intro, project cards, skills section, and contact form",
+    "webapp": "a web application with navigation, sidebar or tabs, data display, and interactive controls",
+    "poster": "a visually striking poster/banner with bold typography, imagery placeholders, and decorative elements",
+    "dashboard": "an analytics dashboard with metric cards, charts (use inline SVG), tables, and sidebar navigation",
+    "ecommerce": "an e-commerce page with product grid, filters, cart, pricing, and buy buttons",
+    "form": "a multi-field form with validation states, labels, grouped sections, and submit button",
+    "blog": "a blog/article layout with featured image placeholder, rich text content, author info, and related posts",
+    "chat": "a real-time chat interface with message bubbles, input bar, contact list, and online indicators",
+    "game": "a game UI with score display, interactive game board or controls, and start/restart buttons",
+    "mobile": "a mobile app screen with bottom tab bar, cards, and touch-friendly large tap targets",
+    "admin": "an admin panel with data table, CRUD actions, filters, pagination, and status badges",
+}
+
+
+def get_system_prompt(style="modern", purpose=None):
     preset = STYLE_PRESETS.get(style, STYLE_PRESETS["modern"])
-    return BASE_PROMPT.replace("{style_guidelines}", preset["guidelines"])
+    prompt = BASE_PROMPT.replace("{style_guidelines}", preset["guidelines"])
+    if purpose and purpose in PURPOSE_INTENTS:
+        prompt += f"\n\nPURPOSE CONTEXT: The user intends this to be {PURPOSE_INTENTS[purpose]}. Tailor your output accordingly — use appropriate layout patterns, sections, and content for this type of page."
+    return prompt
 
 
 # Default for backward compatibility

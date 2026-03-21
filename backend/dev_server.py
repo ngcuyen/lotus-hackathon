@@ -29,7 +29,7 @@ except ImportError:
 # Add lambda dir to path so we can import prompts
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "lambda"))
-from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt, STYLE_PRESETS
+from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt, STYLE_PRESETS, PURPOSE_INTENTS
 
 app = Flask(__name__)
 CORS(app)
@@ -127,14 +127,15 @@ def generate():
     previous_code = body.get("previous_code")
     modification = body.get("modification")
     style = body.get("style", "modern")
+    purpose = body.get("purpose")
 
     if not image_base64:
         return jsonify({"error": "image_base64 is required"}), 400
 
     try:
         start = time.time()
-        system_prompt = get_system_prompt(style)
-        logger.info(f"[1/4] Received image ({len(image_base64)} chars), style={style}")
+        system_prompt = get_system_prompt(style, purpose)
+        logger.info(f"[1/4] Received image ({len(image_base64)} chars), style={style}, purpose={purpose}")
         messages = build_messages(image_base64, previous_code, modification, style)
         logger.info(f"[2/4] Built messages ({len(messages)} messages), calling {BACKEND}...")
         raw_text = _call_ai_with_prompt(messages, system_prompt)
@@ -155,6 +156,12 @@ def get_styles():
     """Return available style presets."""
     styles = {k: {"name": v["name"]} for k, v in STYLE_PRESETS.items()}
     return jsonify(styles)
+
+
+@app.route("/api/purposes", methods=["GET"])
+def get_purposes():
+    """Return available purpose intents."""
+    return jsonify(PURPOSE_INTENTS)
 
 
 @app.route("/api/generate-stream", methods=["POST"])

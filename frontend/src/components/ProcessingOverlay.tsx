@@ -24,7 +24,8 @@ export function ProcessingOverlay() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm"
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center"
+      style={{ backgroundColor: "rgba(10, 14, 20, 0.92)", backdropFilter: "blur(8px)" }}
     >
       <div className="spinner mb-5" />
 
@@ -34,13 +35,12 @@ export function ProcessingOverlay() {
             key={step}
             initial={{ opacity: 0.3 }}
             animate={{ opacity: i === currentStep ? 1 : i < currentStep ? 0.5 : 0.2 }}
-            className={`text-xs transition-all duration-300 ${
-              i === currentStep
-                ? "text-neutral-900 font-medium"
-                : i < currentStep
-                ? "text-emerald-500"
-                : "text-neutral-300"
-            }`}
+            className={`text-xs transition-all duration-300`}
+            style={{
+              color: i === currentStep ? "var(--scifi-cyan)" : i < currentStep ? "var(--scifi-green)" : "var(--scifi-text-dim)",
+              fontFamily: "'Courier New', monospace",
+              fontWeight: i === currentStep ? 600 : 400,
+            }}
           >
             {i < currentStep ? "✓ " : i === currentStep ? "→ " : "  "}
             {step}

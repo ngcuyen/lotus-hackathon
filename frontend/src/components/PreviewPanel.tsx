@@ -1,9 +1,12 @@
 import { Box } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { LivePreview } from "./LivePreview";
 import { VisualEditor } from "./VisualEditor";
+import { ProcessingOverlay } from "./ProcessingOverlay";
 
 interface PreviewPanelProps {
   result: any;
+  status: "idle" | "processing" | "done" | "error";
   editMode: boolean;
   selectedElement: any;
   onElementSelected: (element: any) => void;
@@ -14,6 +17,7 @@ interface PreviewPanelProps {
 
 export function PreviewPanel({
   result,
+  status,
   editMode,
   selectedElement,
   onElementSelected,
@@ -63,6 +67,9 @@ export function PreviewPanel({
 
       {/* Preview Content */}
       <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence>
+          {status === "processing" && <ProcessingOverlay />}
+        </AnimatePresence>
         {result ? (
           <>
             <LivePreview

@@ -8,6 +8,7 @@ export interface GenerateRequest {
   previous_code?: string;
   modification?: string;
   style?: string;
+  purpose?: string;
 }
 
 export interface GenerateResponse {
