@@ -29,7 +29,11 @@ except ImportError:
 # Add lambda dir to path so we can import prompts
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "lambda"))
-from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt, STYLE_PRESETS, PURPOSE_INTENTS
+from prompts import (
+    SYSTEM_PROMPT, build_messages, get_system_prompt,
+    STYLE_PRESETS, PURPOSE_INTENTS,
+    ANALYZE_SKETCH_SYSTEM_PROMPT, build_analysis_messages,
+)
 
 app = Flask(__name__)
 CORS(app)
@@ -119,9 +123,46 @@ def _call_ai_with_prompt(messages, system_prompt):
     return _call_bedrock(messages, system_prompt)
 
 
+def _parse_analysis(raw_text):
+    """Parse sketch analysis JSON from Step 1. Returns None if invalid."""
+    text = raw_text.strip()
+    # Strip markdown fences if present
+    if text.startswith("```"):
+        lines = text.split("\n")
+        text = "\n".join(lines[1:])
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+    try:
+        parsed = json.loads(text)
+        # Validate required fields
+        required = {"layout", "sections", "components", "inferred_purpose"}
+        if required.issubset(parsed.keys()):
+            return parsed
+        logger.warning(f"Analysis missing fields: {required - parsed.keys()}")
+        return None
+    except json.JSONDecodeError as e:
+        logger.warning(f"Analysis parse failed: {e}")
+        return None
+
+
+def _analyze_sketch(image_base64):
+    """Step 1: Analyze sketch structure. Returns analysis dict or None on failure."""
+    try:
+        messages = build_analysis_messages(image_base64)
+        raw = _call_ai_with_prompt(messages, ANALYZE_SKETCH_SYSTEM_PROMPT)
+        analysis = _parse_analysis(raw)
+        if analysis:
+            logger.info(f"[ANALYZE] layout={analysis.get('layout')}, components={analysis.get('components')}")
+        return analysis
+    except Exception as e:
+        logger.warning(f"[ANALYZE] Step 1 failed (continuing without analysis): {e}")
+        return None
+
+
 @app.route("/api/generate", methods=["POST"])
 def generate():
-    """Sync generation endpoint."""
+    """2-step generation: analyze sketch → generate code."""
     body = request.json
     image_base64 = body.get("image_base64")
     previous_code = body.get("previous_code")
@@ -134,15 +175,32 @@ def generate():
 
     try:
         start = time.time()
+        logger.info(f"[1/5] Received image ({len(image_base64)} chars), style={style}, purpose={purpose}")
+
+        # ── Step 1: Analyze sketch (skip for modifications — we already have context) ──
+        sketch_analysis = None
+        if not modification:
+            t1 = time.time()
+            sketch_analysis = _analyze_sketch(image_base64)
+            logger.info(f"[2/5] Analysis done in {time.time() - t1:.2f}s — {'success' if sketch_analysis else 'skipped'}")
+        else:
+            logger.info("[2/5] Modification request — skipping analysis")
+
+        # ── Step 2: Generate code ──
         system_prompt = get_system_prompt(style, purpose)
-        logger.info(f"[1/4] Received image ({len(image_base64)} chars), style={style}, purpose={purpose}")
-        messages = build_messages(image_base64, previous_code, modification, style)
-        logger.info(f"[2/4] Built messages ({len(messages)} messages), calling {BACKEND}...")
+        messages = build_messages(
+            image_base64, previous_code, modification,
+            style, purpose, sketch_analysis
+        )
+        logger.info(f"[3/5] Built messages ({len(messages)} turns), calling {BACKEND}...")
         raw_text = _call_ai_with_prompt(messages, system_prompt)
         elapsed = time.time() - start
-        logger.info(f"[3/4] AI responded in {elapsed:.2f}s ({len(raw_text)} chars)")
+        logger.info(f"[4/5] AI responded in {elapsed:.2f}s ({len(raw_text)} chars)")
+
         result = _parse_response(raw_text)
-        logger.info(f"[4/4] Parsed — description: {result.get('description', 'N/A')}")
+        if sketch_analysis:
+            result["sketch_analysis"] = sketch_analysis
+        logger.info(f"[5/5] Done — description: {result.get('description', 'N/A')}")
         result["latency_seconds"] = round(elapsed, 2)
         return jsonify(result)
 

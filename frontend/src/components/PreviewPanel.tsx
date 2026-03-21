@@ -10,7 +10,7 @@ interface PreviewPanelProps {
   editMode: boolean;
   selectedElement: any;
   onElementSelected: (element: any) => void;
-  onElementDragged: (element: any, position: { x: number; y: number }) => void;
+  onElementDragged: (element: any, deltaX: number, deltaY: number) => void;
   onModify: (modifications: any) => void;
   onCloseEditor: () => void;
 }
@@ -71,21 +71,12 @@ export function PreviewPanel({
           {status === "processing" && <ProcessingOverlay />}
         </AnimatePresence>
         {result ? (
-          <>
             <LivePreview
               code={result.component}
               editMode={editMode}
               onElementSelected={onElementSelected}
               onElementDragged={onElementDragged}
             />
-            {editMode && selectedElement && (
-              <VisualEditor
-                selectedElement={selectedElement}
-                onModify={onModify}
-                onClose={onCloseEditor}
-              />
-            )}
-          </>
         ) : (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">

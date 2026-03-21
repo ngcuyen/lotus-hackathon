@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Code2, RotateCcw, Zap, Eye, Box, Sparkles, Square, Palette, Moon, BarChart3, Plus, Edit3, Hand } from "lucide-react";
+import { type DemoSketch } from "./utils/demoSketches";
 import { CameraCapture } from "./components/CameraCapture";
 import { LivePreview } from "./components/LivePreview";
 import { CodePanel } from "./components/CodePanel";
@@ -87,7 +88,7 @@ export default function App() {
         setSelectedElement(null);
       }
     },
-    [sketchImage, result, selectedStyle, generate]
+    [sketchImage, result, selectedStyle, selectedPurpose, generate]
   );
 
   const handleElementDragged = useCallback(
@@ -104,7 +105,7 @@ export default function App() {
         setSelectedElement(null);
       }
     },
-    [sketchImage, result, selectedStyle, generate]
+    [sketchImage, result, selectedStyle, selectedPurpose, generate]
   );
 
   const handleCapture = useCallback(
@@ -112,7 +113,18 @@ export default function App() {
       setSketchImage(imageBase64);
       generate(imageBase64, undefined, selectedStyle, selectedPurpose ?? undefined);
     },
-    [generate, selectedStyle]
+    [generate, selectedStyle, selectedPurpose]
+  );
+
+  const handleDemoSelect = useCallback(
+    (sketch: DemoSketch) => {
+      const imageBase64 = sketch.getImageBase64();
+      setSketchImage(imageBase64);
+      setSelectedPurpose(sketch.purpose);
+      setSelectedStyle(sketch.style);
+      generate(imageBase64, undefined, sketch.style, sketch.purpose);
+    },
+    [generate]
   );
 
   const handleReset = useCallback(() => {
@@ -358,6 +370,7 @@ export default function App() {
           leftPanel={
             <InputPanel
               onCapture={handleCapture}
+              onDemoSelect={handleDemoSelect}
               sketchImage={sketchImage}
               purposes={PURPOSES}
               selectedPurpose={selectedPurpose}
