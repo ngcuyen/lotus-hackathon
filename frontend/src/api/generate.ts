@@ -5,9 +5,9 @@ const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 export interface GenerateRequest {
   image_base64: string;
-  // Optional: previous context for iterative refinement
   previous_code?: string;
-  modification?: string; // e.g. "make the button bigger"
+  modification?: string;
+  style?: string;
 }
 
 export interface GenerateResponse {

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, Sparkles, Code2, RotateCcw, Download } from "lucide-react";
+import { Sparkles, Code2, RotateCcw } from "lucide-react";
 import { CameraCapture } from "./components/CameraCapture";
 import { LivePreview } from "./components/LivePreview";
 import { CodePanel } from "./components/CodePanel";
@@ -10,15 +10,24 @@ import { useSketchToApp } from "./hooks/useSketchToApp";
 export default function App() {
   const [sketchImage, setSketchImage] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState("modern");
+
+  const STYLES = [
+    { id: "modern", name: "Modern", emoji: "✨" },
+    { id: "glassmorphism", name: "Glass", emoji: "🪟" },
+    { id: "neobrutalism", name: "Neo Brutal", emoji: "🎨" },
+    { id: "dark", name: "Dark", emoji: "🌙" },
+    { id: "saas", name: "Dashboard", emoji: "📊" },
+  ];
 
   const { generate, result, status, error, latency, reset } = useSketchToApp();
 
   const handleCapture = useCallback(
     (imageBase64: string) => {
       setSketchImage(imageBase64);
-      generate(imageBase64);
+      generate(imageBase64, undefined, selectedStyle);
     },
-    [generate]
+    [generate, selectedStyle]
   );
 
   const handleReset = useCallback(() => {
@@ -29,9 +38,9 @@ export default function App() {
 
   const handleRegenerate = useCallback(() => {
     if (sketchImage) {
-      generate(sketchImage);
+      generate(sketchImage, undefined, selectedStyle);
     }
-  }, [sketchImage, generate]);
+  }, [sketchImage, generate, selectedStyle]);
 
   return (
     <div className="h-screen flex flex-col bg-neutral-50">
@@ -48,6 +57,24 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Style selector */}
+          <div className="flex items-center gap-1 mr-2 border-r border-neutral-200 pr-3">
+            {STYLES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSelectedStyle(s.id)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  selectedStyle === s.id
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-500 hover:bg-neutral-100"
+                }`}
+                title={s.name}
+              >
+                {s.emoji} {s.name}
+              </button>
+            ))}
+          </div>
+
           {result && (
             <>
               <button onClick={() => setShowCode(!showCode)} className="btn-ghost flex items-center gap-1.5">
@@ -67,18 +94,13 @@ export default function App() {
       </header>
 
       {/* ─── Main Split View ─── */}
-      <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0 }}>
+      <div className="flex-1 flex" style={{ minHeight: 0 }}>
         {/* Left: Sketch Input */}
         <div className="w-1/2 flex flex-col border-r border-neutral-200">
           <div className="px-4 py-2 border-b border-neutral-100 flex items-center justify-between">
-            <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
-              Sketch input
-            </span>
-            {sketchImage && (
-              <span className="text-[10px] text-emerald-600 font-medium">Captured</span>
-            )}
+            <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">Sketch input</span>
+            {sketchImage && <span className="text-[10px] text-emerald-600 font-medium">Captured</span>}
           </div>
-
           <div className="flex-1 p-4">
             <CameraCapture onCapture={handleCapture} currentImage={sketchImage} />
           </div>
@@ -87,50 +109,33 @@ export default function App() {
         {/* Right: Live Preview */}
         <div className="w-1/2 flex flex-col">
           <div className="px-4 py-2 border-b border-neutral-100 flex items-center justify-between">
-            <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
-              Live preview
-            </span>
+            <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">Live preview</span>
             {latency && (
               <span className="text-[10px] text-neutral-400">
                 Generated in {latency.total.toFixed(1)}s
-                <span className="ml-2 text-neutral-300">
-                  (AI: {latency.ai.toFixed(1)}s · Render: {latency.render.toFixed(1)}s)
-                </span>
+                <span className="ml-2 text-neutral-300">(AI: {latency.ai.toFixed(1)}s)</span>
               </span>
             )}
           </div>
 
-          <div className="flex-1 relative bg-neutral-100/50" style={{ minHeight: 0, overflow: "auto" }}>
+          <div className="flex-1 relative">
             {/* Processing overlay */}
             <AnimatePresence>
-              {status === "processing" && (
-                <ProcessingOverlay />
-              )}
+              {status === "processing" && <ProcessingOverlay />}
             </AnimatePresence>
 
             {/* Error state */}
             {error && (
-              <div className="absolute inset-0 flex items-center justify-center p-8">
+              <div className="absolute inset-0 flex items-center justify-center p-8 z-10">
                 <div className="text-center">
                   <p className="text-sm text-red-500 mb-3">{error}</p>
-                  <button onClick={handleRegenerate} className="btn-primary">
-                    Try again
-                  </button>
+                  <button onClick={handleRegenerate} className="btn-primary">Try again</button>
                 </div>
               </div>
             )}
 
             {/* Live Preview */}
-            {result && status === "done" && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="h-full"
-              >
-                <LivePreview code={result.component} />
-              </motion.div>
-            )}
+            {result && <LivePreview code={result.component} />}
 
             {/* Empty state */}
             {!result && status === "idle" && (
@@ -169,15 +174,11 @@ export default function App() {
           <span>Region: us-east-1</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div
-            className={`w-1.5 h-1.5 rounded-full ${
-              status === "processing"
-                ? "bg-amber-400 animate-pulse"
-                : status === "done"
-                ? "bg-emerald-400"
-                : "bg-neutral-300"
-            }`}
-          />
+          <div className={`w-1.5 h-1.5 rounded-full ${
+            status === "processing" ? "bg-amber-400 animate-pulse"
+              : status === "done" ? "bg-emerald-400"
+              : "bg-neutral-300"
+          }`} />
           <span className="text-[10px] text-neutral-400">
             {status === "idle" && "Ready"}
             {status === "processing" && "Generating..."}

@@ -29,7 +29,7 @@ except ImportError:
 # Add lambda dir to path so we can import prompts
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "lambda"))
-from prompts import SYSTEM_PROMPT, build_messages
+from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt, STYLE_PRESETS
 
 app = Flask(__name__)
 CORS(app)
@@ -62,9 +62,9 @@ else:
     logger.info(f"Using AWS Bedrock (model: {MODEL_ID})")
 
 
-def _call_openai(messages):
+def _call_openai(messages, system_prompt=SYSTEM_PROMPT):
     """Call OpenAI API. Convert Anthropic message format to OpenAI format."""
-    oai_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    oai_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         content = msg["content"]
         if isinstance(content, str):
@@ -85,21 +85,21 @@ def _call_openai(messages):
     return response.choices[0].message.content
 
 
-def _call_anthropic(messages):
+def _call_anthropic(messages, system_prompt=SYSTEM_PROMPT):
     """Call Anthropic API directly."""
     response = client.messages.create(
-        model=MODEL_ID, system=SYSTEM_PROMPT, messages=messages,
+        model=MODEL_ID, system=system_prompt, messages=messages,
         max_tokens=MAX_TOKENS, temperature=0.3,
     )
     return response.content[0].text
 
 
-def _call_bedrock(messages):
+def _call_bedrock(messages, system_prompt=SYSTEM_PROMPT):
     """Call AWS Bedrock."""
     response = client.invoke_model(
         modelId=MODEL_ID, contentType="application/json", accept="application/json",
         body=json.dumps({
-            "anthropic_version": "bedrock-2023-05-31", "system": SYSTEM_PROMPT,
+            "anthropic_version": "bedrock-2023-05-31", "system": system_prompt,
             "messages": messages, "max_tokens": MAX_TOKENS, "temperature": 0.3,
         }),
     )
@@ -108,11 +108,15 @@ def _call_bedrock(messages):
 
 
 def _call_ai(messages):
+    return _call_ai_with_prompt(messages, SYSTEM_PROMPT)
+
+
+def _call_ai_with_prompt(messages, system_prompt):
     if BACKEND == "openai":
-        return _call_openai(messages)
+        return _call_openai(messages, system_prompt)
     elif BACKEND == "anthropic":
-        return _call_anthropic(messages)
-    return _call_bedrock(messages)
+        return _call_anthropic(messages, system_prompt)
+    return _call_bedrock(messages, system_prompt)
 
 
 @app.route("/api/generate", methods=["POST"])
@@ -122,27 +126,35 @@ def generate():
     image_base64 = body.get("image_base64")
     previous_code = body.get("previous_code")
     modification = body.get("modification")
+    style = body.get("style", "modern")
 
     if not image_base64:
         return jsonify({"error": "image_base64 is required"}), 400
 
     try:
         start = time.time()
-        logger.info(f"[1/4] Received image ({len(image_base64)} chars base64)")
-        messages = build_messages(image_base64, previous_code, modification)
+        system_prompt = get_system_prompt(style)
+        logger.info(f"[1/4] Received image ({len(image_base64)} chars), style={style}")
+        messages = build_messages(image_base64, previous_code, modification, style)
         logger.info(f"[2/4] Built messages ({len(messages)} messages), calling {BACKEND}...")
-        raw_text = _call_ai(messages)
+        raw_text = _call_ai_with_prompt(messages, system_prompt)
         elapsed = time.time() - start
         logger.info(f"[3/4] AI responded in {elapsed:.2f}s ({len(raw_text)} chars)")
         result = _parse_response(raw_text)
-        logger.info(f"[4/4] Parsed response — description: {result.get('description', 'N/A')}")
-        logger.info(f"[4/4] Component preview: {result.get('component', '')[:200]}...")
+        logger.info(f"[4/4] Parsed — description: {result.get('description', 'N/A')}")
         result["latency_seconds"] = round(elapsed, 2)
         return jsonify(result)
 
     except Exception as e:
         logger.error(f"Generation error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/styles", methods=["GET"])
+def get_styles():
+    """Return available style presets."""
+    styles = {k: {"name": v["name"]} for k, v in STYLE_PRESETS.items()}
+    return jsonify(styles)
 
 
 @app.route("/api/generate-stream", methods=["POST"])
