@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+*.pyc
+__pycache__/
+.aws-sam/
+.vite/
+.DS_Store

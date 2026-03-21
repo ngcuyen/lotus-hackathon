@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: "DM Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-sm border border-neutral-200/60 rounded-2xl;
+  }
+  .btn-primary {
+    @apply px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm font-medium
+           hover:bg-neutral-800 active:scale-[0.98] transition-all duration-150;
+  }
+  .btn-secondary {
+    @apply px-4 py-2 bg-white border border-neutral-200 text-neutral-700 rounded-lg text-sm font-medium
+           hover:bg-neutral-50 active:scale-[0.98] transition-all duration-150;
+  }
+  .btn-ghost {
+    @apply px-3 py-1.5 text-neutral-500 text-sm hover:text-neutral-900 hover:bg-neutral-100
+           rounded-lg transition-all duration-150;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 2px; }
+
+/* Processing spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 32px; height: 32px;
+  border: 2.5px solid #e5e5e5;
+  border-top-color: #171717;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Sketch canvas crosshair */
+.sketch-canvas { cursor: crosshair; }

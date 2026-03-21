@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Sketch to Living App — Backend
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+    Environment:
+      Variables:
+        S3_BUCKET: !Ref ImageBucket
+        MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+
+Resources:
+  # ─── API Gateway ───
+  SketchApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST, OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+
+  # ─── Lambda: Generate (sync) ───
+  GenerateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      CodeUri: lambda/
+      Events:
+        Generate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/generate
+            Method: post
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "arn:aws:bedrock:*::foundation-model/*"
+        - S3WritePolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── Lambda: Generate Stream ───
+  GenerateStreamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler_stream
+      CodeUri: lambda/
+      Events:
+        GenerateStream:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/generate-stream
+            Method: post
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "arn:aws:bedrock:*::foundation-model/*"
+        - S3WritePolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── S3 Bucket for sketch images ───
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "sketch2app-images-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupOldSketches
+            Status: Enabled
+            ExpirationInDays: 7
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub "https://${SketchApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  
+  BucketName:
+    Description: S3 bucket for sketch images
+    Value: !Ref ImageBucket
