@@ -2,6 +2,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Sketch to Living App — Backend
 
+Parameters:
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API Key
+    NoEcho: true
+
 Globals:
   Function:
     Timeout: 30
@@ -10,7 +16,8 @@ Globals:
     Environment:
       Variables:
         S3_BUCKET: !Ref ImageBucket
-        MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+        MODEL_ID: gpt-4o
+        OPENAI_API_KEY: !Ref OpenAIApiKey
         DYNAMODB_TABLE: !Ref GenerationsTable
 
 Resources:
@@ -20,7 +27,7 @@ Resources:
     Properties:
       StageName: prod
       Cors:
-        AllowMethods: "'POST, OPTIONS'"
+        AllowMethods: "'GET, POST, DELETE, OPTIONS'"
         AllowHeaders: "'Content-Type'"
         AllowOrigin: "'*'"
 
@@ -38,12 +45,6 @@ Resources:
             Path: /api/generate
             Method: post
       Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-                - bedrock:InvokeModelWithResponseStream
-              Resource: "arn:aws:bedrock:*::foundation-model/*"
         - S3WritePolicy:
             BucketName: !Ref ImageBucket
         - DynamoDBCrudPolicy:
@@ -63,16 +64,112 @@ Resources:
             Path: /api/generate-stream
             Method: post
       Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-                - bedrock:InvokeModelWithResponseStream
-              Resource: "arn:aws:bedrock:*::foundation-model/*"
         - S3WritePolicy:
             BucketName: !Ref ImageBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref GenerationsTable
+
+  # ─── Lambda: Save Custom Style ───
+  SaveStyleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: styles_handler.save_style
+      CodeUri: lambda/
+      Events:
+        SaveStyle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/styles
+            Method: post
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── Lambda: List Custom Styles ───
+  ListStylesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: styles_handler.list_styles
+      CodeUri: lambda/
+      Events:
+        ListStyles:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/styles
+            Method: get
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── Lambda: Delete Custom Style ───
+  DeleteStyleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: styles_handler.delete_style
+      CodeUri: lambda/
+      Events:
+        DeleteStyle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/styles/{styleId}
+            Method: delete
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── Lambda: Save Panel Settings ───
+  SavePanelSettingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: settings_handler.save_panel_settings
+      CodeUri: lambda/
+      Events:
+        SavePanelSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/settings/panel
+            Method: post
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── Lambda: Get Panel Settings ───
+  GetPanelSettingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: settings_handler.get_panel_settings
+      CodeUri: lambda/
+      Events:
+        GetPanelSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/settings/panel
+            Method: get
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ImageBucket
+
+  # ─── Lambda: Reset Panel Settings ───
+  ResetPanelSettingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: settings_handler.reset_panel_settings
+      CodeUri: lambda/
+      Events:
+        ResetPanelSettings:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/settings/panel/reset
+            Method: post
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ImageBucket
 
   # ─── S3 Bucket for sketch images ───
   ImageBucket:

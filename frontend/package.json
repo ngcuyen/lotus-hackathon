@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "playwright test",
+    "test:headless": "playwright test --headed=false",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.19.0",
@@ -17,6 +22,7 @@
     "react-webcam": "^7.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",

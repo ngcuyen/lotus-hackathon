@@ -275,7 +275,7 @@ request = {
 }
 response = generate_component(request)
 assert "forgot password" not in response["component"].lower()
-
+szxsAAQw1
 # Test 4: Sequential modifications
 code1 = generate_component({"image_base64": "..."})
 code2 = generate_component({"previous_code": code1, "modification": "Make button larger"})

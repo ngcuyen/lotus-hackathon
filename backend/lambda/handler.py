@@ -1,11 +1,11 @@
 """
 Sketch → Living App — Lambda Handler
-Receives a sketch image, calls Bedrock Claude Vision, returns React code.
+Receives a sketch image, calls OpenAI GPT-4o Vision, returns React code.
 
 Deploy: AWS SAM / CDK / Serverless Framework
 Runtime: Python 3.12
 Memory: 512MB (image processing needs headroom)
-Timeout: 30s (Claude Vision can take 3-8s)
+Timeout: 30s (GPT-4o Vision can take 3-8s)
 """
 
 import json
@@ -13,35 +13,39 @@ import os
 import time
 import logging
 import boto3
-from prompts import SYSTEM_PROMPT, build_messages
+from openai import OpenAI
+from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# ─── AWS Clients ───
-bedrock = boto3.client(
-    "bedrock-runtime",
-    region_name=os.environ.get("AWS_REGION", "us-east-1"),
-)
+# ─── OpenAI Client ───
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logger.warning("OPENAI_API_KEY not set - API calls will fail")
 
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ─── AWS S3 Client ───
 s3 = boto3.client("s3")
 BUCKET = os.environ.get("S3_BUCKET", "sketch2app-images")
 
 # ─── Model Config ───
-# Use Claude Sonnet 4 for best speed/quality balance
-MODEL_ID = os.environ.get("MODEL_ID", "us.anthropic.claude-sonnet-4-20250514-v1:0")
+MODEL_ID = os.environ.get("MODEL_ID", "gpt-4o")
 MAX_TOKENS = 4096
 
 
 def handler(event, context):
     """
     Main Lambda handler.
-    
+
     Expected body:
     {
         "image_base64": "...",           # Required: base64 encoded sketch image
         "previous_code": "...",          # Optional: for iterative refinement
-        "modification": "make it blue"   # Optional: text instruction for changes
+        "modification": "make it blue",  # Optional: text instruction for changes
+        "style": "modern",               # Optional: style preset
+        "purpose": "landing page"        # Optional: purpose intent
     }
     """
     try:
@@ -50,6 +54,8 @@ def handler(event, context):
         image_base64 = body.get("image_base64")
         previous_code = body.get("previous_code")
         modification = body.get("modification")
+        style = body.get("style", "modern")
+        purpose = body.get("purpose")
 
         if not image_base64:
             return _response(400, {"error": "image_base64 is required"})
@@ -57,33 +63,36 @@ def handler(event, context):
         # Optionally store image in S3 for debugging/history
         _store_image(image_base64, context.aws_request_id)
 
-        # ─── Call Bedrock Claude Vision ───
+        # ─── Call OpenAI GPT-4o Vision ───
         start_time = time.time()
 
-        messages = build_messages(image_base64, previous_code, modification)
+        # Build messages in Anthropic format
+        anthropic_messages = build_messages(
+            image_base64, previous_code, modification,
+            style, purpose, sketch_analysis=None
+        )
 
-        response = bedrock.invoke_model(
-            modelId=MODEL_ID,
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "system": SYSTEM_PROMPT,
-                "messages": messages,
-                "max_tokens": MAX_TOKENS,
-                "temperature": 0.3,  # Lower temp = more consistent code output
-            }),
+        # Convert to OpenAI format
+        system_prompt = get_system_prompt(style, purpose)
+        openai_messages = _convert_to_openai_format(anthropic_messages, system_prompt)
+
+        logger.info(f"Calling OpenAI {MODEL_ID} with {len(openai_messages)} messages")
+
+        response = client.chat.completions.create(
+            model=MODEL_ID,
+            messages=openai_messages,
+            max_tokens=MAX_TOKENS,
+            temperature=0.3,  # Lower temp = more consistent code output
         )
 
         ai_latency = time.time() - start_time
-        logger.info(f"Bedrock latency: {ai_latency:.2f}s")
+        logger.info(f"OpenAI latency: {ai_latency:.2f}s")
 
         # Parse response
-        response_body = json.loads(response["body"].read())
-        raw_text = response_body["content"][0]["text"]
+        raw_text = response.choices[0].message.content
 
-        # Parse the JSON from Claude's response
-        result = _parse_claude_response(raw_text)
+        # Parse the JSON from GPT's response
+        result = _parse_ai_response(raw_text)
         result["latency_seconds"] = round(ai_latency, 2)
 
         return _response(200, result)
@@ -101,34 +110,33 @@ def handler_stream(event, context):
     try:
         body = json.loads(event.get("body", "{}"))
         image_base64 = body.get("image_base64")
+        style = body.get("style", "modern")
+        purpose = body.get("purpose")
 
         if not image_base64:
             return _response(400, {"error": "image_base64 is required"})
 
-        messages = build_messages(image_base64)
+        # Build messages
+        anthropic_messages = build_messages(image_base64)
+        system_prompt = get_system_prompt(style, purpose)
+        openai_messages = _convert_to_openai_format(anthropic_messages, system_prompt)
 
-        response = bedrock.invoke_model_with_response_stream(
-            modelId=MODEL_ID,
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "system": SYSTEM_PROMPT,
-                "messages": messages,
-                "max_tokens": MAX_TOKENS,
-                "temperature": 0.3,
-            }),
+        # Stream response
+        stream = client.chat.completions.create(
+            model=MODEL_ID,
+            messages=openai_messages,
+            max_tokens=MAX_TOKENS,
+            temperature=0.3,
+            stream=True,
         )
 
         # Collect streamed chunks
         full_text = ""
-        for event_chunk in response["body"]:
-            chunk = json.loads(event_chunk["chunk"]["bytes"])
-            if chunk["type"] == "content_block_delta":
-                delta = chunk["delta"].get("text", "")
-                full_text += delta
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                full_text += chunk.choices[0].delta.content
 
-        result = _parse_claude_response(full_text)
+        result = _parse_ai_response(full_text)
         return _response(200, result)
 
     except Exception as e:
@@ -136,10 +144,64 @@ def handler_stream(event, context):
         return _response(500, {"error": str(e)})
 
 
-def _parse_claude_response(raw_text: str) -> dict:
+def _convert_to_openai_format(anthropic_messages, system_prompt):
     """
-    Parse Claude's response. It should be JSON, but sometimes
-    Claude wraps it in markdown backticks or adds extra text.
+    Convert Anthropic message format to OpenAI format.
+
+    Anthropic format:
+    [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "..."}},
+                {"type": "text", "text": "..."}
+            ]
+        }
+    ]
+
+    OpenAI format:
+    [
+        {"role": "system", "content": "..."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "..."},
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
+            ]
+        }
+    ]
+    """
+    openai_messages = [{"role": "system", "content": system_prompt}]
+
+    for msg in anthropic_messages:
+        content = msg["content"]
+
+        if isinstance(content, str):
+            # Simple text message
+            openai_messages.append({"role": msg["role"], "content": content})
+        elif isinstance(content, list):
+            # Multi-part message (image + text)
+            parts = []
+            for block in content:
+                if block.get("type") == "text":
+                    parts.append({"type": "text", "text": block["text"]})
+                elif block.get("type") == "image":
+                    # Convert Anthropic image format to OpenAI format
+                    b64_data = block["source"]["data"]
+                    media_type = block["source"]["media_type"]
+                    parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{media_type};base64,{b64_data}"}
+                    })
+            openai_messages.append({"role": msg["role"], "content": parts})
+
+    return openai_messages
+
+
+def _parse_ai_response(raw_text: str) -> dict:
+    """
+    Parse AI response. It should be JSON, but sometimes
+    AI wraps it in markdown backticks or adds extra text.
     """
     text = raw_text.strip()
 
@@ -159,7 +221,7 @@ def _parse_claude_response(raw_text: str) -> dict:
         }
     except json.JSONDecodeError:
         # If JSON parse fails, treat the whole response as code
-        logger.warning("Failed to parse JSON from Claude, treating as raw code")
+        logger.warning("Failed to parse JSON from AI, treating as raw code")
         return {
             "component": text,
             "description": "Generated component (raw output)",
