@@ -179,8 +179,7 @@ export const PreviewPanel = forwardRef<LivePreviewHandle, PreviewPanelProps>(
                     maxHeight: "70%",
                     borderRadius: "8px",
                     border: "1px solid rgba(0, 212, 255, 0.2)",
-                    boxShadow: "0 0 30px rgba(0, 212, 255, 0.1)",
-                    display: "none",
+                    boxShadow: "0 0 30px rgba(0, 212, 255, 0.1)"
                   }}
                 />
                 <p className="text-sm mt-4 font-semibold" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}>

@@ -192,18 +192,15 @@ export default function App() {
               style={{ filter: "drop-shadow(0 0 8px rgba(0, 212, 255, 0.4))" }}
             />
             <div className="flex flex-col">
-              <span className="text-sm font-bold uppercase tracking-wider leading-none" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}>
-                SKETCH2APP
+              <span className="text-sm font-bold tracking-wider leading-none" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}>
+                UTMorpho
               </span>
               <span className="text-[9px] uppercase tracking-wider" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
                 Neural Interface
               </span>
             </div>
           </div>
-          <div className="h-6 w-px" style={{ backgroundColor: "rgba(0, 212, 255, 0.3)" }} />
-          <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-            BEDROCK CLAUDE VISION
-          </span>
+
         </div>
 
         <div className="flex items-center gap-3">

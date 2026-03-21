@@ -69,8 +69,9 @@ const IFRAME_SHELL = `<!DOCTYPE html>
         }
       } catch (e) {
         console.error('[IFRAME RENDER]', e.message);
-        errEl.style.display = 'block';
-        errEl.textContent = e.message;
+        // Don't show error during streaming - just log to console
+        // errEl.style.display = 'block';
+        // errEl.textContent = e.message;
       }
     }
 

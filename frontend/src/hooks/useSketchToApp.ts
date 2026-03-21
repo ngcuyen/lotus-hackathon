@@ -82,21 +82,47 @@ function autoCloseCode(code: string): string | null {
     if (opens > closes) return null; // mid-chart, skip this frame
   }
 
+  // Check for unclosed strings - if found, skip this frame
   let braces = 0, parens = 0;
   let inString = false;
   let stringChar = '';
-  for (let i = 0; i < result.length; i++) {
+  let i = 0;
+  while (i < result.length) {
     const ch = result[i];
+
     if (inString) {
-      if (ch === stringChar && result[i - 1] !== '\\') inString = false;
+      // Check for escape sequence
+      if (ch === '\\' && i + 1 < result.length) {
+        i += 2; // Skip escape char and next char
+        continue;
+      }
+      // Check for string close
+      if (ch === stringChar) {
+        inString = false;
+      }
+      i++;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === '`') { inString = true; stringChar = ch; continue; }
+
+    // Not in string - check for string start
+    if (ch === '"' || ch === "'" || ch === '`') {
+      inString = true;
+      stringChar = ch;
+      i++;
+      continue;
+    }
+
+    // Count braces/parens
     if (ch === '{') braces++;
     else if (ch === '}') braces--;
     else if (ch === '(') parens++;
     else if (ch === ')') parens--;
+
+    i++;
   }
+
+  // If we're still in a string, skip this frame to avoid syntax errors
+  if (inString) return null;
 
   const openTags: string[] = [];
   const tagRegex = /<\/?([A-Za-z][A-Za-z0-9.]*)[^>]*\/?>/g;
@@ -113,10 +139,19 @@ function autoCloseCode(code: string): string | null {
     }
   }
 
+  // Check if there's an incomplete opening tag at the end
   const lastOpenBracket = result.lastIndexOf('<');
   if (lastOpenBracket !== -1) {
     const afterBracket = result.slice(lastOpenBracket);
-    if (!afterBracket.includes('>')) {
+    // Only close if it's a tag start and no closing bracket
+    if (!afterBracket.includes('>') && afterBracket.match(/^<[A-Za-z]/)) {
+      // Check if this incomplete tag has any attribute value being written
+      // e.g., <div className="absolute right-0
+      const hasIncompleteAttr = afterBracket.match(/=\s*["'][^"']*$/);
+      if (hasIncompleteAttr) {
+        // Attribute value not closed, skip this frame
+        return null;
+      }
       result += ' />';
     }
   }
