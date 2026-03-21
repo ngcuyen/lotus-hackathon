@@ -1,4 +1,4 @@
-import { Box } from "lucide-react";
+import { Box, Check, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { LivePreview } from "./LivePreview";
 import { VisualEditor } from "./VisualEditor";
@@ -11,7 +11,7 @@ interface PreviewPanelProps {
   selectedElement: any;
   onElementSelected: (element: any) => void;
   onElementDragged: (element: any, deltaX: number, deltaY: number) => void;
-  onModify: (modifications: any) => void;
+  onModify: (modification: string) => void;
   onCloseEditor: () => void;
 }
 

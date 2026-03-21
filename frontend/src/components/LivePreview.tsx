@@ -103,12 +103,27 @@ export function LivePreview({ code, editMode = false, onElementSelected, onEleme
         const totalDeltaY = e.clientY - startY;
 
         if (isDragging) {
-          // Drag end - send modification
+          // Drag end - apply final position with CSS
           e.preventDefault();
           e.stopPropagation();
 
-          const rect = el.getBoundingClientRect();
+          // Ensure element is positioned
+          const computedStyle = window.getComputedStyle(el);
+          if (computedStyle.position === 'static') {
+            el.style.position = 'relative';
+          }
 
+          // Parse current position
+          const currentLeft = parseFloat(computedStyle.left) || 0;
+          const currentTop = parseFloat(computedStyle.top) || 0;
+
+          // Apply final position (remove transform, use left/top)
+          el.style.left = \`\${currentLeft + totalDeltaX}px\`;
+          el.style.top = \`\${currentTop + totalDeltaY}px\`;
+          el.style.transform = ''; // Remove transform
+
+          // Send message (for logging/history only, not for regeneration)
+          const rect = el.getBoundingClientRect();
           window.parent.postMessage({
             type: 'ELEMENT_DRAGGED',
             deltaX: Math.round(totalDeltaX),
@@ -126,11 +141,10 @@ export function LivePreview({ code, editMode = false, onElementSelected, onEleme
             }
           }, '*');
 
-          // Reset styles
+          // Reset visual styles (keep position)
           el.style.outline = '';
           el.style.outlineOffset = '';
           el.style.opacity = '';
-          el.style.transform = '';
           el.style.cursor = '';
         } else {
           // Click - send selection

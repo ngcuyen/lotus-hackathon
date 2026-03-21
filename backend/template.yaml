@@ -171,6 +171,57 @@ Resources:
         - S3CrudPolicy:
             BucketName: !Ref ImageBucket
 
+  # ─── Lambda: List Generations (History) ───
+  ListGenerationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: generations_handler.list_generations
+      CodeUri: lambda/
+      Events:
+        ListGenerations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/generations
+            Method: get
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref GenerationsTable
+
+  # ─── Lambda: Get Generation by ID ───
+  GetGenerationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: generations_handler.get_generation
+      CodeUri: lambda/
+      Events:
+        GetGeneration:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/generations/{genId}
+            Method: get
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref GenerationsTable
+
+  # ─── Lambda: Delete Generation ───
+  DeleteGenerationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: generations_handler.delete_generation
+      CodeUri: lambda/
+      Events:
+        DeleteGeneration:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SketchApi
+            Path: /api/generations/{genId}
+            Method: delete
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GenerationsTable
+
   # ─── S3 Bucket for sketch images ───
   ImageBucket:
     Type: AWS::S3::Bucket

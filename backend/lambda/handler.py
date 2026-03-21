@@ -12,6 +12,8 @@ import json
 import os
 import time
 import logging
+import uuid
+from datetime import datetime
 import boto3
 from openai import OpenAI
 from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt
@@ -29,6 +31,11 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ─── AWS S3 Client ───
 s3 = boto3.client("s3")
 BUCKET = os.environ.get("S3_BUCKET", "sketch2app-images")
+
+# ─── DynamoDB Client ───
+dynamodb = boto3.resource("dynamodb")
+TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "sketch2app-generations")
+table = dynamodb.Table(TABLE_NAME)
 
 # ─── Model Config ───
 MODEL_ID = os.environ.get("MODEL_ID", "gpt-4o")
@@ -95,6 +102,19 @@ def handler(event, context):
         result = _parse_ai_response(raw_text)
         result["latency_seconds"] = round(ai_latency, 2)
 
+        # Save to DynamoDB
+        gen_id = str(uuid.uuid4())
+        _save_generation(
+            gen_id=gen_id,
+            description=result.get("description", ""),
+            component=result.get("component", ""),
+            style=style,
+            purpose=purpose,
+            modification=modification,
+            latency_seconds=result["latency_seconds"],
+        )
+
+        result["gen_id"] = gen_id
         return _response(200, result)
 
     except Exception as e:
@@ -245,6 +265,41 @@ def _store_image(image_base64: str, request_id: str):
         )
     except Exception as e:
         logger.warning(f"Failed to store image: {e}")
+
+
+def _save_generation(
+    gen_id: str,
+    description: str,
+    component: str,
+    style: str,
+    purpose: str = None,
+    modification: str = None,
+    latency_seconds: float = 0,
+):
+    """
+    Save generation to DynamoDB.
+    Non-blocking — failures here don't affect the main flow.
+    """
+    try:
+        item = {
+            "gen_id": gen_id,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "description": description,
+            "component": component,
+            "style": style,
+            "latency_seconds": latency_seconds,
+        }
+
+        if purpose:
+            item["purpose"] = purpose
+        if modification:
+            item["modification"] = modification
+
+        table.put_item(Item=item)
+        logger.info(f"Saved generation {gen_id} to DynamoDB")
+
+    except Exception as e:
+        logger.warning(f"Failed to save generation: {e}")
 
 
 def _response(status_code: int, body: dict) -> dict:

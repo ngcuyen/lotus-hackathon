@@ -25,6 +25,7 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [selectedElement, setSelectedElement] = useState<any>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [panelSettings, setPanelSettings] = useState<CustomizationSettings>({
     panelOpacity: 75,
     panelBlur: 12,
@@ -95,25 +96,28 @@ export default function App() {
 
   const handleElementDragged = useCallback(
     (element: any, deltaX: number, deltaY: number) => {
-      if (sketchImage && result) {
-        const direction = [];
-        if (deltaX > 0) direction.push(`${deltaX}px to the right`);
-        else if (deltaX < 0) direction.push(`${Math.abs(deltaX)}px to the left`);
-        if (deltaY > 0) direction.push(`${deltaY}px down`);
-        else if (deltaY < 0) direction.push(`${Math.abs(deltaY)}px up`);
-
-        const modification = `Move the ${element.tagName.toLowerCase()} ${direction.join(' and ')}`;
-        generate(sketchImage, modification, selectedStyle, selectedPurpose ?? undefined);
-        setSelectedElement(null);
-      }
+      // Element position already updated in LivePreview via CSS
+      // Mark as having unsaved changes
+      setHasUnsavedChanges(true);
+      console.log(`Element dragged: ${element.tagName} by (${deltaX}, ${deltaY})`);
     },
-    [sketchImage, result, selectedStyle, selectedPurpose, generate]
+    []
   );
+
+  const handleSaveToCode = useCallback(() => {
+    if (sketchImage && result) {
+      // Prompt AI to generate code based on current visual state
+      const modification = "Update the code to match the current visual layout with all element positions";
+      generate(sketchImage, modification, selectedStyle, selectedPurpose ?? undefined);
+      setHasUnsavedChanges(false);
+    }
+  }, [sketchImage, result, selectedStyle, selectedPurpose, generate]);
 
   const handleCapture = useCallback(
     (imageBase64: string) => {
       setSketchImage(imageBase64);
       generate(imageBase64, undefined, selectedStyle, selectedPurpose ?? undefined);
+      setHasUnsavedChanges(false);
     },
     [generate, selectedStyle, selectedPurpose]
   );
@@ -134,6 +138,7 @@ export default function App() {
     setShowCode(false);
     setEditMode(false);
     setSelectedElement(null);
+    setHasUnsavedChanges(false);
     reset();
   }, [reset]);
 
@@ -296,6 +301,36 @@ export default function App() {
 
           {/* Action buttons */}
           <div className="flex items-center gap-1.5">
+            {/* Save to Code button (when edit mode has changes) */}
+            {editMode && hasUnsavedChanges && (
+              <button
+                onClick={handleSaveToCode}
+                title="Save changes to code"
+                className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+                style={{
+                  clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
+                  backgroundColor: "var(--scifi-green)",
+                  color: "black",
+                  border: "none",
+                  fontFamily: "'Courier New', monospace",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                  e.currentTarget.style.filter = "brightness(1.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.filter = "brightness(1)";
+                }}
+              >
+                <Zap className="w-3 h-3" />
+                SAVE TO CODE
+              </button>
+            )}
+
             {result && (
               <>
                 <button

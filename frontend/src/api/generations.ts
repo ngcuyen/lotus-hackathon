@@ -12,18 +12,18 @@ export interface GenerationItem {
 }
 
 export async function fetchGenerations(limit = 50): Promise<GenerationItem[]> {
-  const res = await fetch(`${API_BASE}/generations?limit=${limit}`);
+  const res = await fetch(`${API_BASE}/api/generations?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch generations");
   return res.json();
 }
 
 export async function fetchGeneration(genId: string): Promise<GenerationItem> {
-  const res = await fetch(`${API_BASE}/generations/${genId}`);
+  const res = await fetch(`${API_BASE}/api/generations/${genId}`);
   if (!res.ok) throw new Error("Generation not found");
   return res.json();
 }
 
 export async function deleteGeneration(genId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/generations/${genId}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/generations/${genId}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete");
 }
