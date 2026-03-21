@@ -1,7 +1,7 @@
 // ─── API Configuration ───
 // In development, requests proxy to localhost:4000 via Vite config.
 // In production, set this to your API Gateway URL.
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export interface GenerateRequest {
   image_base64: string;
@@ -10,6 +10,7 @@ export interface GenerateRequest {
   style?: string;
   purpose?: string;
   session_id?: string;
+  custom_guidelines?: string;
 }
 
 export interface GenerateResponse {
@@ -24,7 +25,7 @@ export interface GenerateResponse {
 export async function generateFromSketch(
   request: GenerateRequest
 ): Promise<GenerateResponse> {
-  const response = await fetch(`${API_BASE}/generate`, {
+  const response = await fetch(`${API_BASE}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -47,7 +48,7 @@ export async function generateFromSketchStream(
   request: GenerateRequest,
   onToken: (token: string) => void
 ): Promise<GenerateResponse> {
-  const response = await fetch(`${API_BASE}/generate-stream`, {
+  const response = await fetch(`${API_BASE}/api/generate-stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),

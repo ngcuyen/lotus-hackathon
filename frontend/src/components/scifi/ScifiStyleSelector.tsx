@@ -1,91 +1,135 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 
 interface StyleOption {
   id: string;
   name: string;
   icon: ReactNode;
   description?: string;
+  custom?: boolean;
 }
 
 interface ScifiStyleSelectorProps {
   options: StyleOption[];
   selected: string;
   onSelect: (id: string) => void;
+  onDelete?: (id: string) => void;
   className?: string;
 }
 
-export function ScifiStyleSelector({ options, selected, onSelect, className = "" }: ScifiStyleSelectorProps) {
+function Tooltip({ text, anchorRect }: { text: string; anchorRect: DOMRect }) {
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        zIndex: 99999,
+        top: anchorRect.bottom + 6,
+        left: anchorRect.left + anchorRect.width / 2,
+        transform: "translateX(-50%)",
+        backgroundColor: "rgba(10, 15, 26, 0.95)",
+        border: "1px solid var(--scifi-orange)",
+        clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
+        padding: "4px 10px",
+        fontSize: "0.65rem",
+        fontWeight: 600,
+        color: "var(--scifi-orange)",
+        fontFamily: "'Courier New', monospace",
+        boxShadow: "0 0 12px var(--scifi-orange)40",
+        whiteSpace: "nowrap",
+        pointerEvents: "none",
+      }}
+    >
+      {text}
+    </div>,
+    document.body
+  );
+}
+
+export function ScifiStyleSelector({ options, selected, onSelect, onDelete, className = "" }: ScifiStyleSelectorProps) {
+  const [hovered, setHovered] = useState<{ id: string; rect: DOMRect } | null>(null);
+
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       {options.map((option) => {
         const isActive = option.id === selected;
+        const isHovered = hovered?.id === option.id;
         return (
-          <button
-            key={option.id}
-            onClick={() => onSelect(option.id)}
-            title={option.description || option.name}
-            className="group relative"
-            style={{
-              width: "36px",
-              height: "36px",
-              clipPath: "polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px)",
-              backgroundColor: isActive ? "var(--scifi-panel)" : "transparent",
-              border: `1px solid ${isActive ? "var(--scifi-orange)" : "rgba(255, 106, 0, 0.2)"}`,
-              boxShadow: isActive ? "0 0 12px var(--scifi-orange)40" : "none",
-              color: isActive ? "var(--scifi-orange)" : "var(--scifi-text-dim)",
-              transition: "all 0.2s ease",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.borderColor = "rgba(255, 106, 0, 0.5)";
-                e.currentTarget.style.color = "var(--scifi-orange)";
-                e.currentTarget.style.backgroundColor = "rgba(17, 24, 39, 0.3)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) {
-                e.currentTarget.style.borderColor = "rgba(255, 106, 0, 0.2)";
-                e.currentTarget.style.color = "var(--scifi-text-dim)";
-                e.currentTarget.style.backgroundColor = "transparent";
-              }
-            }}
-          >
-            {option.icon}
-
-            {/* Tooltip */}
-            <div
-              className="absolute top-full mt-2 px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50"
+          <div key={option.id} style={{ position: "relative" }}>
+            <button
+              onClick={() => onSelect(option.id)}
+              onMouseEnter={(e) => setHovered({ id: option.id, rect: e.currentTarget.getBoundingClientRect() })}
+              onMouseLeave={() => setHovered(null)}
               style={{
-                backgroundColor: "var(--scifi-panel)",
-                border: "1px solid var(--scifi-orange)",
-                clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-                fontSize: "0.75rem",
-                color: "var(--scifi-text)",
-                fontFamily: "'Courier New', monospace",
-                boxShadow: "0 0 16px var(--scifi-orange)40",
+                width: "36px",
+                height: "36px",
+                clipPath: "polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px)",
+                backgroundColor: isActive ? "var(--scifi-panel)" : isHovered ? "rgba(17, 24, 39, 0.3)" : "transparent",
+                border: `1px solid ${isActive ? "var(--scifi-orange)" : isHovered ? "rgba(255, 106, 0, 0.5)" : "rgba(255, 106, 0, 0.2)"}`,
+                boxShadow: isActive ? "0 0 12px var(--scifi-orange)40" : "none",
+                color: isActive || isHovered ? "var(--scifi-orange)" : "var(--scifi-text-dim)",
+                transition: "all 0.2s ease",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              {option.name}
-            </div>
+              {option.icon}
+            </button>
+
+            {/* Delete button for custom styles */}
+            {option.custom && isHovered && onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(option.id); setHovered(null); }}
+                onMouseEnter={(e) => {
+                  // Keep hovered state
+                  const parent = e.currentTarget.previousElementSibling as HTMLElement;
+                  if (parent) setHovered({ id: option.id, rect: parent.getBoundingClientRect() });
+                }}
+                style={{
+                  position: "absolute",
+                  top: "-4px",
+                  right: "-4px",
+                  width: "14px",
+                  height: "14px",
+                  borderRadius: "50%",
+                  backgroundColor: "#dc2626",
+                  border: "none",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  zIndex: 10,
+                  boxShadow: "0 0 4px rgba(220, 38, 38, 0.5)",
+                }}
+              >
+                <X style={{ width: "8px", height: "8px" }} />
+              </button>
+            )}
 
             {/* Active indicator */}
             {isActive && (
               <div
-                className="absolute -bottom-1 left-1/2 w-3 h-0.5"
                 style={{
+                  position: "absolute",
+                  bottom: "-3px",
+                  left: "50%",
+                  width: "12px",
+                  height: "2px",
                   backgroundColor: "var(--scifi-orange)",
                   boxShadow: "0 0 6px var(--scifi-orange)",
                   transform: "translateX(-50%)",
                 }}
               />
             )}
-          </button>
+          </div>
         );
       })}
+
+      {/* Portal tooltip */}
+      {hovered && <Tooltip text={options.find(o => o.id === hovered.id)?.name || ""} anchorRect={hovered.rect} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Trash2, Move, Type, Palette, Maximize2, Send, ChevronDown, ChevronRight, Box, AlignLeft, AlignCenter, AlignRight, Bold, Italic } from "lucide-react";
-import { ScifiPanel } from "./scifi/ScifiPanel";
+import { Trash2, Move, Type, Palette, Maximize2, Send, ChevronDown, ChevronRight, AlignLeft, AlignCenter, AlignRight, X } from "lucide-react";
+import type { LivePreviewHandle } from "./LivePreview";
 
 interface SelectedElement {
   tagName: string;
@@ -18,21 +18,20 @@ interface SelectedElement {
 
 interface VisualEditorProps {
   selectedElement: SelectedElement | null;
+  previewRef: React.RefObject<LivePreviewHandle | null>;
   onModify: (modification: string) => void;
   onClose: () => void;
 }
 
-export function VisualEditor({ selectedElement, onModify, onClose }: VisualEditorProps) {
+export function VisualEditor({ selectedElement, previewRef, onModify, onClose }: VisualEditorProps) {
   const [activeTab, setActiveTab] = useState<"quick" | "advanced" | "custom">("quick");
   const [customPrompt, setCustomPrompt] = useState("");
-
-  // Quick controls
   const [selectedColor, setSelectedColor] = useState("#00d4ff");
   const [selectedBgColor, setSelectedBgColor] = useState("#ffffff");
   const [selectedSize, setSelectedSize] = useState<"small" | "medium" | "large">("medium");
   const [newText, setNewText] = useState("");
 
-  // Advanced controls
+  // Advanced
   const [paddingTop, setPaddingTop] = useState("0");
   const [paddingRight, setPaddingRight] = useState("0");
   const [paddingBottom, setPaddingBottom] = useState("0");
@@ -55,7 +54,6 @@ export function VisualEditor({ selectedElement, onModify, onClose }: VisualEdito
   const [shadowBlur, setShadowBlur] = useState("6");
   const [shadowColor, setShadowColor] = useState("#00000040");
 
-  // Collapse states
   const [spacingOpen, setSpacingOpen] = useState(true);
   const [typographyOpen, setTypographyOpen] = useState(false);
   const [layoutOpen, setLayoutOpen] = useState(false);
@@ -63,105 +61,87 @@ export function VisualEditor({ selectedElement, onModify, onClose }: VisualEdito
 
   if (!selectedElement) return null;
 
-  const handleColorChange = () => {
-    onModify(`Change the text color of this ${selectedElement.tagName.toLowerCase()} to ${selectedColor}`);
-  };
-
-  const handleBgColorChange = () => {
-    onModify(`Change the background color of this ${selectedElement.tagName.toLowerCase()} to ${selectedBgColor}`);
-  };
-
-  const handleSizeChange = (size: "small" | "medium" | "large") => {
-    setSelectedSize(size);
-    const sizeMap = { small: "smaller", medium: "medium", large: "larger" };
-    onModify(`Make this ${selectedElement.tagName.toLowerCase()} ${sizeMap[size]}`);
-  };
-
-  const handleTextChange = () => {
-    if (newText) {
-      onModify(`Change the text of this ${selectedElement.tagName.toLowerCase()} to "${newText}"`);
-    }
-  };
-
-  const handleDelete = () => {
-    onModify(`Remove this ${selectedElement.tagName.toLowerCase()} element`);
-  };
+  const el = selectedElement;
+  const tag = el.tagName.toLowerCase();
+  const apply = (styles: Record<string, string>) => previewRef.current?.applyStyle(styles);
 
   const handleCustomModification = () => {
-    if (customPrompt) {
-      onModify(customPrompt);
-      setCustomPrompt("");
-    }
+    if (customPrompt) { onModify(customPrompt); setCustomPrompt(""); }
   };
 
   const applySpacing = () => {
-    const mods = [];
-    if (paddingTop !== "0") mods.push(`padding-top: ${paddingTop}px`);
-    if (paddingRight !== "0") mods.push(`padding-right: ${paddingRight}px`);
-    if (paddingBottom !== "0") mods.push(`padding-bottom: ${paddingBottom}px`);
-    if (paddingLeft !== "0") mods.push(`padding-left: ${paddingLeft}px`);
-    if (marginTop !== "0") mods.push(`margin-top: ${marginTop}px`);
-    if (marginRight !== "0") mods.push(`margin-right: ${marginRight}px`);
-    if (marginBottom !== "0") mods.push(`margin-bottom: ${marginBottom}px`);
-    if (marginLeft !== "0") mods.push(`margin-left: ${marginLeft}px`);
-
-    if (mods.length > 0) {
-      onModify(`Update this ${selectedElement.tagName.toLowerCase()} with: ${mods.join(", ")}`);
-    }
+    const s: Record<string, string> = {};
+    if (paddingTop !== "0") s.paddingTop = paddingTop + "px";
+    if (paddingRight !== "0") s.paddingRight = paddingRight + "px";
+    if (paddingBottom !== "0") s.paddingBottom = paddingBottom + "px";
+    if (paddingLeft !== "0") s.paddingLeft = paddingLeft + "px";
+    if (marginTop !== "0") s.marginTop = marginTop + "px";
+    if (marginRight !== "0") s.marginRight = marginRight + "px";
+    if (marginBottom !== "0") s.marginBottom = marginBottom + "px";
+    if (marginLeft !== "0") s.marginLeft = marginLeft + "px";
+    if (Object.keys(s).length) apply(s);
   };
 
   const applyTypography = () => {
-    const mods = [];
-    if (fontSize !== "16") mods.push(`font-size: ${fontSize}px`);
-    if (fontWeight !== "normal") mods.push(`font-weight: ${fontWeight}`);
-    if (textAlign !== "left") mods.push(`text-align: ${textAlign}`);
-
-    if (mods.length > 0) {
-      onModify(`Update this ${selectedElement.tagName.toLowerCase()} typography: ${mods.join(", ")}`);
-    }
+    const s: Record<string, string> = {};
+    if (fontSize !== "16") s.fontSize = fontSize + "px";
+    if (fontWeight !== "normal") s.fontWeight = fontWeight;
+    if (textAlign !== "left") s.textAlign = textAlign;
+    if (Object.keys(s).length) apply(s);
   };
 
   const applyLayout = () => {
-    const mods = [];
-    if (width) mods.push(`width: ${width}`);
-    if (height) mods.push(`height: ${height}`);
-    if (borderRadius !== "0") mods.push(`border-radius: ${borderRadius}px`);
-
-    if (mods.length > 0) {
-      onModify(`Update this ${selectedElement.tagName.toLowerCase()} layout: ${mods.join(", ")}`);
-    }
+    const s: Record<string, string> = {};
+    if (width) s.width = width;
+    if (height) s.height = height;
+    if (borderRadius !== "0") s.borderRadius = borderRadius + "px";
+    if (Object.keys(s).length) apply(s);
   };
 
   const applyEffects = () => {
-    const mods = [];
-    if (opacity !== "100") mods.push(`opacity: ${parseInt(opacity) / 100}`);
-    if (borderWidth !== "0") mods.push(`border: ${borderWidth}px solid ${borderColor}`);
-    if (shadowBlur !== "0") {
-      mods.push(`box-shadow: ${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}`);
-    }
-
-    if (mods.length > 0) {
-      onModify(`Update this ${selectedElement.tagName.toLowerCase()} effects: ${mods.join(", ")}`);
-    }
+    const s: Record<string, string> = {};
+    if (opacity !== "100") s.opacity = String(parseInt(opacity) / 100);
+    if (borderWidth !== "0") s.border = `${borderWidth}px solid ${borderColor}`;
+    if (shadowBlur !== "0") s.boxShadow = `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}`;
+    if (Object.keys(s).length) apply(s);
   };
 
-  const CollapsibleSection = ({ title, isOpen, onToggle, children }: any) => (
+  // Shared styles
+  const labelStyle: React.CSSProperties = { color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace", fontWeight: "600" };
+  const inputStyle: React.CSSProperties = {
+    height: "28px", backgroundColor: "var(--scifi-bg)", border: "1px solid rgba(255, 106, 0, 0.3)",
+    color: "var(--scifi-text)", fontFamily: "'Courier New', monospace", fontSize: "0.7rem", padding: "0 0.5rem", outline: "none",
+  };
+  const btnClip = "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)";
+  const btnClip4 = "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)";
+
+  const ToggleBtn = ({ active, onClick, children, style: s }: any) => (
+    <button onClick={onClick} style={{
+      flex: 1, height: "28px", clipPath: btnClip,
+      backgroundColor: active ? "var(--scifi-orange)" : "transparent",
+      border: "1px solid var(--scifi-orange)",
+      color: active ? "var(--scifi-bg)" : "var(--scifi-orange)",
+      fontFamily: "'Courier New', monospace", fontSize: "0.65rem", fontWeight: "600",
+      cursor: "pointer", textTransform: "uppercase",
+      display: "flex", alignItems: "center", justifyContent: "center", ...s,
+    }}>{children}</button>
+  );
+
+  const ApplyBtn = ({ onClick, children }: any) => (
+    <button onClick={onClick} style={{
+      width: "100%", height: "28px", clipPath: btnClip, marginTop: "0.5rem",
+      backgroundColor: "var(--scifi-orange)", border: "1px solid var(--scifi-orange)",
+      color: "var(--scifi-bg)", fontFamily: "'Courier New', monospace", fontSize: "0.65rem", fontWeight: "600", cursor: "pointer",
+    }}>{children}</button>
+  );
+
+  const Section = ({ title, isOpen, onToggle, children }: any) => (
     <div className="mb-3">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between mb-2"
-        style={{
-          color: "var(--scifi-orange)",
-          fontFamily: "'Courier New', monospace",
-          fontSize: "0.7rem",
-          fontWeight: "600",
-          textTransform: "uppercase",
-          cursor: "pointer",
-          background: "none",
-          border: "none",
-          padding: "0.25rem 0",
-        }}
-      >
+      <button onClick={onToggle} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        color: "var(--scifi-orange)", fontFamily: "'Courier New', monospace", fontSize: "0.7rem",
+        fontWeight: "600", textTransform: "uppercase", cursor: "pointer", background: "none", border: "none", padding: "0.25rem 0",
+      }}>
         <span>{title}</span>
         {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
       </button>
@@ -169,691 +149,236 @@ export function VisualEditor({ selectedElement, onModify, onClose }: VisualEdito
     </div>
   );
 
-  const InputGroup = ({ label, value, onChange, unit = "px", min = 0, max = 500 }: any) => (
+  const NumInput = ({ label, value, onChange, unit = "px" }: any) => (
     <div>
-      <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-        {label}
-      </label>
+      <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>{label}</label>
       <div className="flex gap-1">
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          min={min}
-          max={max}
-          style={{
-            flex: 1,
-            height: "28px",
-            backgroundColor: "var(--scifi-bg)",
-            border: "1px solid rgba(255, 106, 0, 0.3)",
-            color: "var(--scifi-text)",
-            fontFamily: "'Courier New', monospace",
-            fontSize: "0.7rem",
-            padding: "0 0.5rem",
-            outline: "none",
-          }}
-        />
-        <span
-          className="flex items-center justify-center"
-          style={{
-            width: "32px",
-            height: "28px",
-            border: "1px solid rgba(255, 106, 0, 0.3)",
-            color: "var(--scifi-text-dim)",
-            fontFamily: "'Courier New', monospace",
-            fontSize: "0.65rem",
-          }}
-        >
-          {unit}
-        </span>
+        <input type="number" value={value} onChange={(e: any) => onChange(e.target.value)} min={0} max={500} style={{ ...inputStyle, flex: 1 }} />
+        <span className="flex items-center justify-center" style={{ width: "32px", height: "28px", border: "1px solid rgba(255, 106, 0, 0.3)", color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace", fontSize: "0.65rem" }}>{unit}</span>
       </div>
     </div>
   );
 
   return (
-    <div
-      className="fixed right-4 top-20 z-40 overflow-y-auto"
-      style={{
-        width: "340px",
-        maxHeight: "calc(100vh - 100px)",
-      }}
-    >
-      <ScifiPanel variant="orange" className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Move className="w-4 h-4" style={{ color: "var(--scifi-orange)" }} />
-              <span
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--scifi-orange)", fontFamily: "'Courier New', monospace" }}
-              >
-                EDIT ELEMENT
-              </span>
-            </div>
-            <span className="text-xs" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-              {selectedElement.tagName}
-              {selectedElement.className && `.${selectedElement.className.split(" ")[0]}`}
+    <div style={{
+      width: "100%", height: "100%",
+      backgroundColor: "rgba(17, 24, 39, 0.85)",
+      backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      display: "flex", flexDirection: "column",
+    }}>
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255, 106, 0, 0.2)" }}>
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Move className="w-4 h-4" style={{ color: "var(--scifi-orange)" }} />
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--scifi-orange)", fontFamily: "'Courier New', monospace" }}>
+              EDIT ELEMENT
             </span>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              color: "var(--scifi-text-dim)",
-              cursor: "pointer",
-              transition: "color 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--scifi-orange)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--scifi-text-dim)";
-            }}
-          >
-            ✕
-          </button>
+          <span className="text-[10px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
+            {el.tagName}{el.className && `.${el.className.split(" ")[0]}`}
+          </span>
         </div>
+        <button onClick={onClose} style={{
+          width: "28px", height: "28px", backgroundColor: "transparent",
+          border: "1px solid var(--scifi-orange)", color: "var(--scifi-orange)",
+          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+          clipPath: btnClip,
+        }}>
+          <X className="w-3 h-3" />
+        </button>
+      </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-4">
-          {[
-            { id: "quick", label: "QUICK" },
-            { id: "advanced", label: "ADVANCED" },
-            { id: "custom", label: "CUSTOM" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              style={{
-                flex: 1,
-                height: "26px",
-                clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                backgroundColor: activeTab === tab.id ? "var(--scifi-orange)" : "transparent",
-                border: `1px solid var(--scifi-orange)`,
-                color: activeTab === tab.id ? "var(--scifi-bg)" : "var(--scifi-orange)",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "0.65rem",
-                fontWeight: "600",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 px-4 pt-3">
+        {(["quick", "advanced", "custom"] as const).map((t) => (
+          <button key={t} onClick={() => setActiveTab(t)} style={{
+            flex: 1, height: "26px", clipPath: btnClip,
+            backgroundColor: activeTab === t ? "var(--scifi-orange)" : "transparent",
+            border: "1px solid var(--scifi-orange)",
+            color: activeTab === t ? "var(--scifi-bg)" : "var(--scifi-orange)",
+            fontFamily: "'Courier New', monospace", fontSize: "0.65rem", fontWeight: "600", cursor: "pointer", textTransform: "uppercase",
+          }}>{t}</button>
+        ))}
+      </div>
 
-        {/* Quick Actions */}
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4" style={{ scrollbarWidth: "thin" }}>
+
+        {/* ── Quick Tab ── */}
         {activeTab === "quick" && (
           <div className="space-y-3">
             {/* Text Color */}
             <div>
-              <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
-                <Type className="w-3 h-3 inline mr-1" />
-                TEXT COLOR
+              <label className="text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1 block" style={labelStyle}>
+                <Type className="w-3 h-3" /> TEXT COLOR
               </label>
               <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  style={{
-                    width: "40px",
-                    height: "32px",
-                    border: "1px solid var(--scifi-orange)",
-                    cursor: "pointer",
-                  }}
-                />
-                <button
-                  onClick={handleColorChange}
-                  style={{
-                    flex: 1,
-                    height: "32px",
-                    clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-                    backgroundColor: "var(--scifi-orange)",
-                    border: "1px solid var(--scifi-orange)",
-                    color: "var(--scifi-bg)",
-                    fontFamily: "'Courier New', monospace",
-                    fontSize: "0.7rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  APPLY
-                </button>
+                <input type="color" value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)} style={{ width: "40px", height: "32px", border: "1px solid var(--scifi-orange)", cursor: "pointer" }} />
+                <button onClick={() => apply({ color: selectedColor })} style={{
+                  flex: 1, height: "32px", clipPath: btnClip4,
+                  backgroundColor: "var(--scifi-orange)", border: "1px solid var(--scifi-orange)", color: "var(--scifi-bg)",
+                  fontFamily: "'Courier New', monospace", fontSize: "0.7rem", fontWeight: "600", cursor: "pointer",
+                }}>APPLY</button>
               </div>
             </div>
 
-            {/* Background Color */}
+            {/* BG Color */}
             <div>
-              <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
-                <Palette className="w-3 h-3 inline mr-1" />
-                BG COLOR
+              <label className="text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1 block" style={labelStyle}>
+                <Palette className="w-3 h-3" /> BG COLOR
               </label>
               <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={selectedBgColor}
-                  onChange={(e) => setSelectedBgColor(e.target.value)}
-                  style={{
-                    width: "40px",
-                    height: "32px",
-                    border: "1px solid var(--scifi-orange)",
-                    cursor: "pointer",
-                  }}
-                />
-                <button
-                  onClick={handleBgColorChange}
-                  style={{
-                    flex: 1,
-                    height: "32px",
-                    clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-                    backgroundColor: "var(--scifi-orange)",
-                    border: "1px solid var(--scifi-orange)",
-                    color: "var(--scifi-bg)",
-                    fontFamily: "'Courier New', monospace",
-                    fontSize: "0.7rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  APPLY
-                </button>
+                <input type="color" value={selectedBgColor} onChange={(e) => setSelectedBgColor(e.target.value)} style={{ width: "40px", height: "32px", border: "1px solid var(--scifi-orange)", cursor: "pointer" }} />
+                <button onClick={() => apply({ backgroundColor: selectedBgColor })} style={{
+                  flex: 1, height: "32px", clipPath: btnClip4,
+                  backgroundColor: "var(--scifi-orange)", border: "1px solid var(--scifi-orange)", color: "var(--scifi-bg)",
+                  fontFamily: "'Courier New', monospace", fontSize: "0.7rem", fontWeight: "600", cursor: "pointer",
+                }}>APPLY</button>
               </div>
             </div>
 
             {/* Size */}
             <div>
-              <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
-                <Maximize2 className="w-3 h-3 inline mr-1" />
-                SIZE
+              <label className="text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1 block" style={labelStyle}>
+                <Maximize2 className="w-3 h-3" /> SIZE
               </label>
               <div className="flex gap-1">
-                {(["small", "medium", "large"] as const).map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => handleSizeChange(size)}
-                    style={{
-                      flex: 1,
-                      height: "28px",
-                      clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                      backgroundColor: selectedSize === size ? "var(--scifi-orange)" : "transparent",
-                      border: `1px solid var(--scifi-orange)`,
-                      color: selectedSize === size ? "var(--scifi-bg)" : "var(--scifi-orange)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.65rem",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {size[0]}
-                  </button>
+                {(["small", "medium", "large"] as const).map((s) => (
+                  <ToggleBtn key={s} active={selectedSize === s} onClick={() => { setSelectedSize(s); apply({ fontSize: s === "small" ? "0.875rem" : s === "large" ? "1.25rem" : "1rem", padding: s === "small" ? "0.25rem 0.5rem" : s === "large" ? "0.75rem 1.5rem" : "0.5rem 1rem" }); }}>
+                    {s[0]}
+                  </ToggleBtn>
                 ))}
               </div>
             </div>
 
             {/* Text */}
             <div>
-              <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
-                <Type className="w-3 h-3 inline mr-1" />
-                TEXT
+              <label className="text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1 block" style={labelStyle}>
+                <Type className="w-3 h-3" /> TEXT
               </label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={selectedElement.textContent.slice(0, 20) || "Enter new text"}
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  style={{
-                    flex: 1,
-                    height: "32px",
-                    backgroundColor: "var(--scifi-bg)",
-                    border: "none",
-                    borderBottom: "2px solid var(--scifi-orange)",
-                    color: "var(--scifi-text)",
-                    fontFamily: "'Courier New', monospace",
-                    fontSize: "0.75rem",
-                    padding: "0.5rem",
-                    outline: "none",
-                  }}
+                <input type="text" placeholder={el.textContent.slice(0, 20) || "New text"} value={newText} onChange={(e) => setNewText(e.target.value)}
+                  style={{ ...inputStyle, flex: 1, height: "32px", borderBottom: "2px solid var(--scifi-orange)", border: "none", borderBottomStyle: "solid", borderBottomWidth: "2px", borderBottomColor: "var(--scifi-orange)" }}
                 />
-                <button
-                  onClick={handleTextChange}
-                  disabled={!newText}
-                  style={{
-                    width: "60px",
-                    height: "32px",
-                    clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-                    backgroundColor: newText ? "var(--scifi-orange)" : "rgba(255, 106, 0, 0.3)",
-                    border: "1px solid var(--scifi-orange)",
-                    color: newText ? "var(--scifi-bg)" : "var(--scifi-text-dim)",
-                    fontFamily: "'Courier New', monospace",
-                    fontSize: "0.7rem",
-                    fontWeight: "600",
-                    cursor: newText ? "pointer" : "not-allowed",
-                  }}
-                >
-                  SET
-                </button>
+                <button onClick={() => { if (newText) previewRef.current?.applyText(newText); }} disabled={!newText} style={{
+                  width: "60px", height: "32px", clipPath: btnClip4,
+                  backgroundColor: newText ? "var(--scifi-orange)" : "rgba(255, 106, 0, 0.3)",
+                  border: "1px solid var(--scifi-orange)", color: newText ? "var(--scifi-bg)" : "var(--scifi-text-dim)",
+                  fontFamily: "'Courier New', monospace", fontSize: "0.7rem", fontWeight: "600", cursor: newText ? "pointer" : "not-allowed",
+                }}>SET</button>
               </div>
             </div>
 
             {/* Delete */}
-            <button
-              onClick={handleDelete}
-              style={{
-                width: "100%",
-                height: "32px",
-                clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-                backgroundColor: "transparent",
-                border: "1px solid #dc2626",
-                color: "#dc2626",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "0.7rem",
-                fontWeight: "600",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(220, 38, 38, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              <Trash2 className="w-3 h-3" />
-              DELETE ELEMENT
+            <button onClick={() => { previewRef.current?.deleteElement(); onClose(); }} style={{
+              width: "100%", height: "32px", clipPath: btnClip4,
+              backgroundColor: "transparent", border: "1px solid #dc2626", color: "#dc2626",
+              fontFamily: "'Courier New', monospace", fontSize: "0.7rem", fontWeight: "600", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+            }}>
+              <Trash2 className="w-3 h-3" /> DELETE ELEMENT
             </button>
           </div>
         )}
 
-        {/* Advanced Tab */}
+        {/* ── Advanced Tab ── */}
         {activeTab === "advanced" && (
           <div className="space-y-1">
-            {/* Spacing Section */}
-            <CollapsibleSection title="Spacing" isOpen={spacingOpen} onToggle={() => setSpacingOpen(!spacingOpen)}>
+            <Section title="Spacing" isOpen={spacingOpen} onToggle={() => setSpacingOpen(!spacingOpen)}>
               <div className="grid grid-cols-2 gap-2">
-                <InputGroup label="Padding Top" value={paddingTop} onChange={setPaddingTop} />
-                <InputGroup label="Padding Right" value={paddingRight} onChange={setPaddingRight} />
-                <InputGroup label="Padding Bottom" value={paddingBottom} onChange={setPaddingBottom} />
-                <InputGroup label="Padding Left" value={paddingLeft} onChange={setPaddingLeft} />
-                <InputGroup label="Margin Top" value={marginTop} onChange={setMarginTop} />
-                <InputGroup label="Margin Right" value={marginRight} onChange={setMarginRight} />
-                <InputGroup label="Margin Bottom" value={marginBottom} onChange={setMarginBottom} />
-                <InputGroup label="Margin Left" value={marginLeft} onChange={setMarginLeft} />
+                <NumInput label="Pad Top" value={paddingTop} onChange={setPaddingTop} />
+                <NumInput label="Pad Right" value={paddingRight} onChange={setPaddingRight} />
+                <NumInput label="Pad Bottom" value={paddingBottom} onChange={setPaddingBottom} />
+                <NumInput label="Pad Left" value={paddingLeft} onChange={setPaddingLeft} />
+                <NumInput label="Margin Top" value={marginTop} onChange={setMarginTop} />
+                <NumInput label="Margin Right" value={marginRight} onChange={setMarginRight} />
+                <NumInput label="Margin Bottom" value={marginBottom} onChange={setMarginBottom} />
+                <NumInput label="Margin Left" value={marginLeft} onChange={setMarginLeft} />
               </div>
-              <button
-                onClick={applySpacing}
-                style={{
-                  width: "100%",
-                  height: "28px",
-                  clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                  backgroundColor: "var(--scifi-orange)",
-                  border: "1px solid var(--scifi-orange)",
-                  color: "var(--scifi-bg)",
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: "0.65rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  marginTop: "0.5rem",
-                }}
-              >
-                APPLY SPACING
-              </button>
-            </CollapsibleSection>
+              <ApplyBtn onClick={applySpacing}>APPLY SPACING</ApplyBtn>
+            </Section>
 
-            {/* Typography Section */}
-            <CollapsibleSection title="Typography" isOpen={typographyOpen} onToggle={() => setTypographyOpen(!typographyOpen)}>
-              <InputGroup label="Font Size" value={fontSize} onChange={setFontSize} min={8} max={72} />
-
+            <Section title="Typography" isOpen={typographyOpen} onToggle={() => setTypographyOpen(!typographyOpen)}>
+              <NumInput label="Font Size" value={fontSize} onChange={setFontSize} />
               <div>
-                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  Font Weight
-                </label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Font Weight</label>
                 <div className="flex gap-1">
-                  {(["normal", "bold", "bolder"] as const).map((weight) => (
-                    <button
-                      key={weight}
-                      onClick={() => setFontWeight(weight)}
-                      style={{
-                        flex: 1,
-                        height: "28px",
-                        clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                        backgroundColor: fontWeight === weight ? "var(--scifi-orange)" : "transparent",
-                        border: `1px solid var(--scifi-orange)`,
-                        color: fontWeight === weight ? "var(--scifi-bg)" : "var(--scifi-orange)",
-                        fontFamily: "'Courier New', monospace",
-                        fontSize: "0.6rem",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {weight[0]}
-                    </button>
+                  {(["normal", "bold", "bolder"] as const).map((w) => (
+                    <ToggleBtn key={w} active={fontWeight === w} onClick={() => setFontWeight(w)}>{w[0]}</ToggleBtn>
                   ))}
                 </div>
               </div>
-
               <div>
-                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  Text Align
-                </label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Text Align</label>
                 <div className="flex gap-1">
-                  {[
-                    { value: "left" as const, icon: <AlignLeft className="w-3 h-3" /> },
-                    { value: "center" as const, icon: <AlignCenter className="w-3 h-3" /> },
-                    { value: "right" as const, icon: <AlignRight className="w-3 h-3" /> },
-                  ].map(({ value, icon }) => (
-                    <button
-                      key={value}
-                      onClick={() => setTextAlign(value)}
-                      style={{
-                        flex: 1,
-                        height: "28px",
-                        clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                        backgroundColor: textAlign === value ? "var(--scifi-orange)" : "transparent",
-                        border: `1px solid var(--scifi-orange)`,
-                        color: textAlign === value ? "var(--scifi-bg)" : "var(--scifi-orange)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {icon}
-                    </button>
+                  {([{ v: "left" as const, i: <AlignLeft className="w-3 h-3" /> }, { v: "center" as const, i: <AlignCenter className="w-3 h-3" /> }, { v: "right" as const, i: <AlignRight className="w-3 h-3" /> }]).map(({ v, i }) => (
+                    <ToggleBtn key={v} active={textAlign === v} onClick={() => setTextAlign(v)}>{i}</ToggleBtn>
                   ))}
                 </div>
               </div>
+              <ApplyBtn onClick={applyTypography}>APPLY TYPOGRAPHY</ApplyBtn>
+            </Section>
 
-              <button
-                onClick={applyTypography}
-                style={{
-                  width: "100%",
-                  height: "28px",
-                  clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                  backgroundColor: "var(--scifi-orange)",
-                  border: "1px solid var(--scifi-orange)",
-                  color: "var(--scifi-bg)",
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: "0.65rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  marginTop: "0.5rem",
-                }}
-              >
-                APPLY TYPOGRAPHY
-              </button>
-            </CollapsibleSection>
-
-            {/* Layout Section */}
-            <CollapsibleSection title="Layout" isOpen={layoutOpen} onToggle={() => setLayoutOpen(!layoutOpen)}>
+            <Section title="Layout" isOpen={layoutOpen} onToggle={() => setLayoutOpen(!layoutOpen)}>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                    Width
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="auto, 100%, 200px"
-                    value={width}
-                    onChange={(e) => setWidth(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "28px",
-                      backgroundColor: "var(--scifi-bg)",
-                      border: "1px solid rgba(255, 106, 0, 0.3)",
-                      color: "var(--scifi-text)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.7rem",
-                      padding: "0 0.5rem",
-                      outline: "none",
-                    }}
-                  />
+                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Width</label>
+                  <input type="text" placeholder="auto, 100%" value={width} onChange={(e) => setWidth(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                    Height
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="auto, 100%, 200px"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "28px",
-                      backgroundColor: "var(--scifi-bg)",
-                      border: "1px solid rgba(255, 106, 0, 0.3)",
-                      color: "var(--scifi-text)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.7rem",
-                      padding: "0 0.5rem",
-                      outline: "none",
-                    }}
-                  />
+                  <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Height</label>
+                  <input type="text" placeholder="auto, 100%" value={height} onChange={(e) => setHeight(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
                 </div>
               </div>
-              <InputGroup label="Border Radius" value={borderRadius} onChange={setBorderRadius} max={100} />
-              <button
-                onClick={applyLayout}
-                style={{
-                  width: "100%",
-                  height: "28px",
-                  clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                  backgroundColor: "var(--scifi-orange)",
-                  border: "1px solid var(--scifi-orange)",
-                  color: "var(--scifi-bg)",
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: "0.65rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  marginTop: "0.5rem",
-                }}
-              >
-                APPLY LAYOUT
-              </button>
-            </CollapsibleSection>
+              <NumInput label="Border Radius" value={borderRadius} onChange={setBorderRadius} />
+              <ApplyBtn onClick={applyLayout}>APPLY LAYOUT</ApplyBtn>
+            </Section>
 
-            {/* Effects Section */}
-            <CollapsibleSection title="Effects" isOpen={effectsOpen} onToggle={() => setEffectsOpen(!effectsOpen)}>
+            <Section title="Effects" isOpen={effectsOpen} onToggle={() => setEffectsOpen(!effectsOpen)}>
               <div>
-                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  Opacity ({opacity}%)
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={opacity}
-                  onChange={(e) => setOpacity(e.target.value)}
-                  style={{
-                    width: "100%",
-                  }}
-                />
+                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Opacity ({opacity}%)</label>
+                <input type="range" min="0" max="100" value={opacity} onChange={(e) => setOpacity(e.target.value)} style={{ width: "100%", accentColor: "var(--scifi-orange)" }} />
               </div>
-
               <div>
-                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  Border
-                </label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Border</label>
                 <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={borderWidth}
-                    onChange={(e) => setBorderWidth(e.target.value)}
-                    placeholder="Width"
-                    min="0"
-                    max="20"
-                    style={{
-                      flex: 1,
-                      height: "28px",
-                      backgroundColor: "var(--scifi-bg)",
-                      border: "1px solid rgba(255, 106, 0, 0.3)",
-                      color: "var(--scifi-text)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.7rem",
-                      padding: "0 0.5rem",
-                      outline: "none",
-                    }}
-                  />
-                  <input
-                    type="color"
-                    value={borderColor}
-                    onChange={(e) => setBorderColor(e.target.value)}
-                    style={{
-                      width: "40px",
-                      height: "28px",
-                      border: "1px solid var(--scifi-orange)",
-                      cursor: "pointer",
-                    }}
-                  />
+                  <input type="number" value={borderWidth} onChange={(e) => setBorderWidth(e.target.value)} min={0} max={20} style={{ ...inputStyle, flex: 1 }} />
+                  <input type="color" value={borderColor} onChange={(e) => setBorderColor(e.target.value)} style={{ width: "40px", height: "28px", border: "1px solid var(--scifi-orange)", cursor: "pointer" }} />
                 </div>
               </div>
-
               <div>
-                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  Box Shadow
-                </label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block" style={labelStyle}>Box Shadow</label>
                 <div className="grid grid-cols-3 gap-1">
-                  <input
-                    type="number"
-                    value={shadowX}
-                    onChange={(e) => setShadowX(e.target.value)}
-                    placeholder="X"
-                    style={{
-                      height: "28px",
-                      backgroundColor: "var(--scifi-bg)",
-                      border: "1px solid rgba(255, 106, 0, 0.3)",
-                      color: "var(--scifi-text)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.7rem",
-                      padding: "0 0.5rem",
-                      outline: "none",
-                    }}
-                  />
-                  <input
-                    type="number"
-                    value={shadowY}
-                    onChange={(e) => setShadowY(e.target.value)}
-                    placeholder="Y"
-                    style={{
-                      height: "28px",
-                      backgroundColor: "var(--scifi-bg)",
-                      border: "1px solid rgba(255, 106, 0, 0.3)",
-                      color: "var(--scifi-text)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.7rem",
-                      padding: "0 0.5rem",
-                      outline: "none",
-                    }}
-                  />
-                  <input
-                    type="number"
-                    value={shadowBlur}
-                    onChange={(e) => setShadowBlur(e.target.value)}
-                    placeholder="Blur"
-                    min="0"
-                    style={{
-                      height: "28px",
-                      backgroundColor: "var(--scifi-bg)",
-                      border: "1px solid rgba(255, 106, 0, 0.3)",
-                      color: "var(--scifi-text)",
-                      fontFamily: "'Courier New', monospace",
-                      fontSize: "0.7rem",
-                      padding: "0 0.5rem",
-                      outline: "none",
-                    }}
-                  />
+                  <input type="number" value={shadowX} onChange={(e) => setShadowX(e.target.value)} placeholder="X" style={inputStyle} />
+                  <input type="number" value={shadowY} onChange={(e) => setShadowY(e.target.value)} placeholder="Y" style={inputStyle} />
+                  <input type="number" value={shadowBlur} onChange={(e) => setShadowBlur(e.target.value)} placeholder="Blur" min={0} style={inputStyle} />
                 </div>
-                <input
-                  type="color"
-                  value={shadowColor}
-                  onChange={(e) => setShadowColor(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: "28px",
-                    border: "1px solid var(--scifi-orange)",
-                    cursor: "pointer",
-                    marginTop: "0.5rem",
-                  }}
-                />
               </div>
-
-              <button
-                onClick={applyEffects}
-                style={{
-                  width: "100%",
-                  height: "28px",
-                  clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-                  backgroundColor: "var(--scifi-orange)",
-                  border: "1px solid var(--scifi-orange)",
-                  color: "var(--scifi-bg)",
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: "0.65rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  marginTop: "0.5rem",
-                }}
-              >
-                APPLY EFFECTS
-              </button>
-            </CollapsibleSection>
+              <ApplyBtn onClick={applyEffects}>APPLY EFFECTS</ApplyBtn>
+            </Section>
           </div>
         )}
 
-        {/* Custom Prompt */}
+        {/* ── Custom Tab ── */}
         {activeTab === "custom" && (
           <div className="space-y-3">
-            <textarea
-              placeholder="Describe your change... (e.g., add shadow, make it rounded, change to gradient)"
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              rows={5}
-              style={{
-                width: "100%",
-                backgroundColor: "var(--scifi-bg)",
-                border: "1px solid var(--scifi-orange)",
-                color: "var(--scifi-text)",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "0.75rem",
-                padding: "0.75rem",
-                outline: "none",
-                resize: "none",
-              }}
+            <textarea placeholder="Describe your change... (e.g., add shadow, make rounded)" value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)} rows={5}
+              style={{ width: "100%", backgroundColor: "var(--scifi-bg)", border: "1px solid var(--scifi-orange)", color: "var(--scifi-text)", fontFamily: "'Courier New', monospace", fontSize: "0.75rem", padding: "0.75rem", outline: "none", resize: "none" }}
             />
-            <button
-              onClick={handleCustomModification}
-              disabled={!customPrompt}
-              style={{
-                width: "100%",
-                height: "32px",
-                clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-                backgroundColor: customPrompt ? "var(--scifi-orange)" : "rgba(255, 106, 0, 0.3)",
-                border: "1px solid var(--scifi-orange)",
-                color: customPrompt ? "var(--scifi-bg)" : "var(--scifi-text-dim)",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "0.7rem",
-                fontWeight: "600",
-                cursor: customPrompt ? "pointer" : "not-allowed",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Send className="w-3 h-3" />
-              APPLY CHANGE
+            <button onClick={handleCustomModification} disabled={!customPrompt} style={{
+              width: "100%", height: "32px", clipPath: btnClip4,
+              backgroundColor: customPrompt ? "var(--scifi-orange)" : "rgba(255, 106, 0, 0.3)",
+              border: "1px solid var(--scifi-orange)", color: customPrompt ? "var(--scifi-bg)" : "var(--scifi-text-dim)",
+              fontFamily: "'Courier New', monospace", fontSize: "0.7rem", fontWeight: "600",
+              cursor: customPrompt ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+            }}>
+              <Send className="w-3 h-3" /> APPLY CHANGE
             </button>
           </div>
         )}
-      </ScifiPanel>
+      </div>
     </div>
   );
 }

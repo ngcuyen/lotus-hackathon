@@ -11,7 +11,7 @@ interface Latency {
 }
 
 interface UseSketchToAppReturn {
-  generate: (imageBase64: string, modification?: string, style?: string, purpose?: string) => Promise<void>;
+  generate: (imageBase64: string, modification?: string, style?: string, purpose?: string, customGuidelines?: string) => Promise<void>;
   loadMockData: () => void;
   loadResult: (component: string, description: string) => void;
   result: GenerateResponse | null;
@@ -66,15 +66,12 @@ function extractPartialComponent(raw: string): string | null {
 
 /**
  * Auto-close partial JSX/JS code so Babel can compile it.
- * Closes unclosed JSX tags, parens, braces, and adds missing function/return structure.
  */
 function autoCloseCode(code: string): string | null {
-  // Need at least a return statement with some JSX to be useful
   if (!code.includes("return")) return null;
 
   let result = code;
 
-  // Count unclosed braces and parens
   let braces = 0, parens = 0;
   let inString = false;
   let stringChar = '';
@@ -91,16 +88,14 @@ function autoCloseCode(code: string): string | null {
     else if (ch === ')') parens--;
   }
 
-  // Find unclosed JSX tags (simple: scan for <TagName that don't have matching </TagName>)
   const openTags: string[] = [];
   const tagRegex = /<\/?([A-Za-z][A-Za-z0-9.]*)[^>]*\/?>/g;
   let match;
   while ((match = tagRegex.exec(result)) !== null) {
     const full = match[0];
     const tagName = match[1];
-    if (full.endsWith('/>')) continue; // self-closing
+    if (full.endsWith('/>')) continue;
     if (full.startsWith('</')) {
-      // closing tag — pop from stack
       const idx = openTags.lastIndexOf(tagName);
       if (idx !== -1) openTags.splice(idx, 1);
     } else {
@@ -108,22 +103,18 @@ function autoCloseCode(code: string): string | null {
     }
   }
 
-  // Also check for a tag that's still being written: <div className="... (no closing >)
   const lastOpenBracket = result.lastIndexOf('<');
   if (lastOpenBracket !== -1) {
     const afterBracket = result.slice(lastOpenBracket);
     if (!afterBracket.includes('>')) {
-      // Incomplete tag — close it as self-closing
       result += ' />';
     }
   }
 
-  // Close unclosed JSX tags in reverse order
   for (let i = openTags.length - 1; i >= 0; i--) {
     result += `</${openTags[i]}>`;
   }
 
-  // Close unclosed parens and braces
   result += ')'.repeat(Math.max(0, parens));
   result += '}'.repeat(Math.max(0, braces));
 
@@ -141,7 +132,7 @@ export function useSketchToApp(): UseSketchToAppReturn {
   const currentVersionRef = useRef(0);
   const currentGenIdRef = useRef<string | null>(null);
 
-  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string, purpose?: string) => {
+  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string, purpose?: string, customGuidelines?: string) => {
     setStatus("processing");
     setError(null);
     setStreamingCode("");
@@ -155,6 +146,7 @@ export function useSketchToApp(): UseSketchToAppReturn {
         modification,
         style,
         purpose,
+        custom_guidelines: customGuidelines,
         session_id: sessionIdRef.current,
       };
 
@@ -183,7 +175,7 @@ export function useSketchToApp(): UseSketchToAppReturn {
       setStreamingCode("");
       previousCodeRef.current = response.component;
 
-      // Save to DynamoDB (version 1)
+      // Save to DynamoDB
       try {
         const saved = await saveGeneration({
           component: response.component,

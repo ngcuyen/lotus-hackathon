@@ -31,7 +31,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "lambda"))
 from prompts import (
     SYSTEM_PROMPT, build_messages, get_system_prompt,
-    STYLE_PRESETS, PURPOSE_INTENTS,
+    STYLE_PRESETS, PURPOSE_INTENTS, BASE_PROMPT,
     ANALYZE_SKETCH_SYSTEM_PROMPT, build_analysis_messages,
 )
 
@@ -171,13 +171,14 @@ def generate():
     modification = body.get("modification")
     style = body.get("style", "modern")
     purpose = body.get("purpose")
+    custom_guidelines = body.get("custom_guidelines")
 
     if not image_base64:
         return jsonify({"error": "image_base64 is required"}), 400
 
     try:
         start = time.time()
-        logger.info(f"[1/5] Received image ({len(image_base64)} chars), style={style}, purpose={purpose}")
+        logger.info(f"[1/5] Received image ({len(image_base64)} chars), style={style}, purpose={purpose}, custom={'yes' if custom_guidelines else 'no'}")
 
         # ── Step 1: Analyze sketch (skip for modifications — we already have context) ──
         sketch_analysis = None
@@ -189,7 +190,14 @@ def generate():
             logger.info("[2/5] Modification request — skipping analysis")
 
         # ── Step 2: Generate code ──
-        system_prompt = get_system_prompt(style, purpose)
+        if custom_guidelines:
+            # Build prompt with custom guidelines injected
+            logger.info(f"[2.5/5] Custom guidelines: {custom_guidelines[:100]}...")
+            system_prompt = BASE_PROMPT.replace("{style_guidelines}", f"DESIGN STYLE — Custom:\n{custom_guidelines}")
+            if purpose and purpose in PURPOSE_INTENTS:
+                system_prompt += f"\n\nPURPOSE CONTEXT: The user intends this to be {PURPOSE_INTENTS[purpose]}. Tailor your output accordingly."
+        else:
+            system_prompt = get_system_prompt(style, purpose)
         messages = build_messages(
             image_base64, previous_code, modification,
             style, purpose, sketch_analysis
@@ -418,6 +426,64 @@ def _parse_response(raw_text: str) -> dict:
             "component": text,
             "description": "Generated component (raw)",
         }
+
+
+# ─── Panel Settings (local JSON file storage for dev) ───
+
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), ".panel_settings.json")
+
+
+def _load_settings():
+    try:
+        with open(SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def _save_settings(data):
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+DEFAULT_PANEL_SETTINGS = {
+    "panelOpacity": 75,
+    "panelBlur": 12,
+    "borderGlow": True,
+    "animationSpeed": "normal",
+    "colorScheme": "cyan",
+    "fontSize": "medium",
+    "spacing": "normal",
+}
+
+
+@app.route("/api/settings/panel", methods=["GET"])
+def get_panel_settings():
+    data = _load_settings()
+    if data:
+        return jsonify(data)
+    return jsonify({"settings": DEFAULT_PANEL_SETTINGS, "updatedAt": None, "isDefault": True})
+
+
+@app.route("/api/settings/panel", methods=["POST"])
+def save_panel_settings():
+    body = request.json
+    settings = body.get("settings")
+    if not settings:
+        return jsonify({"error": "settings are required"}), 400
+    from datetime import datetime
+    data = {"settings": settings, "updatedAt": datetime.utcnow().isoformat(), "userId": body.get("userId", "default")}
+    _save_settings(data)
+    return jsonify({"success": True, "message": "Settings saved successfully"})
+
+
+@app.route("/api/settings/panel/reset", methods=["POST"])
+def reset_panel_settings():
+    try:
+        os.remove(SETTINGS_FILE)
+    except FileNotFoundError:
+        pass
+    return jsonify({"success": True, "settings": DEFAULT_PANEL_SETTINGS, "message": "Settings reset to defaults"})
 
 
 if __name__ == "__main__":

@@ -4,9 +4,8 @@ import { motion } from "framer-motion";
 const STEPS = [
   "Analyzing sketch layout...",
   "Detecting UI components...",
-  "Mapping relationships...",
   "Generating React code...",
-  "Applying Tailwind styles...",
+  "Applying styles...",
 ];
 
 export function ProcessingOverlay() {
@@ -14,8 +13,8 @@ export function ProcessingOverlay() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentStep((s) => (s + 1) % STEPS.length);
-    }, 1200);
+      setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1));
+    }, 700);
     return () => clearInterval(interval);
   }, []);
 
@@ -24,6 +23,7 @@ export function ProcessingOverlay() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       className="absolute inset-0 z-10 flex flex-col items-center justify-center"
       style={{ backgroundColor: "rgba(10, 14, 20, 0.92)", backdropFilter: "blur(8px)" }}
     >
@@ -31,20 +31,20 @@ export function ProcessingOverlay() {
 
       <div className="space-y-2 text-center">
         {STEPS.map((step, i) => (
-          <motion.p
+          <p
             key={step}
-            initial={{ opacity: 0.3 }}
-            animate={{ opacity: i === currentStep ? 1 : i < currentStep ? 0.5 : 0.2 }}
-            className={`text-xs transition-all duration-300`}
+            className="text-xs"
             style={{
+              opacity: i === currentStep ? 1 : i < currentStep ? 0.5 : 0.2,
               color: i === currentStep ? "var(--scifi-cyan)" : i < currentStep ? "var(--scifi-green)" : "var(--scifi-text-dim)",
               fontFamily: "'Courier New', monospace",
               fontWeight: i === currentStep ? 600 : 400,
+              transition: "all 0.2s",
             }}
           >
             {i < currentStep ? "✓ " : i === currentStep ? "→ " : "  "}
             {step}
-          </motion.p>
+          </p>
         ))}
       </div>
     </motion.div>

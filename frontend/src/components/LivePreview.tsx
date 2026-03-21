@@ -9,6 +9,9 @@ interface Props {
 
 export interface LivePreviewHandle {
   getSnapshot: () => Promise<string>;
+  applyStyle: (styles: Record<string, string>) => void;
+  applyText: (text: string) => void;
+  deleteElement: () => void;
 }
 
 // Static HTML shell — loaded once, never reloaded
@@ -39,7 +42,6 @@ const IFRAME_SHELL = `<!DOCTYPE html>
       errEl.style.display = 'none';
       try {
         const compiled = Babel.transform(code, { presets: ['react'] }).code;
-        // Wrap in a function that returns the App component
         const wrapped = compiled + '\\nreturn typeof App !== "undefined" ? App : null;';
         const fn = new Function('React', 'useState', 'useEffect', 'useRef', 'useCallback', 'useMemo', wrapped);
         const Component = fn(React, useState, useEffect, useRef, useCallback, useMemo);
@@ -48,7 +50,6 @@ const IFRAME_SHELL = `<!DOCTYPE html>
           _root.render(React.createElement(Component));
         }
       } catch (e) {
-        // During streaming, errors are expected — only show if not partial
         if (e.message && !e.message.includes('Unexpected')) {
           errEl.style.display = 'block';
           errEl.textContent = e.message;
@@ -66,11 +67,33 @@ const IFRAME_SHELL = `<!DOCTYPE html>
         enableEditMode();
       } else if (e.data && e.data.type === 'DISABLE_EDIT_MODE') {
         disableEditMode();
+      } else if (e.data && e.data.type === 'APPLY_STYLE') {
+        if (selectedEl) {
+          Object.entries(e.data.styles).forEach(function(pair) {
+            selectedEl.style[pair[0]] = pair[1];
+          });
+        }
+      } else if (e.data && e.data.type === 'APPLY_TEXT') {
+        if (selectedEl) {
+          if (selectedEl.children.length === 0) {
+            selectedEl.textContent = e.data.text;
+          } else {
+            for (var i = 0; i < selectedEl.childNodes.length; i++) {
+              if (selectedEl.childNodes[i].nodeType === 3) {
+                selectedEl.childNodes[i].textContent = e.data.text;
+                break;
+              }
+            }
+          }
+        }
+      } else if (e.data && e.data.type === 'DELETE_ELEMENT') {
+        if (selectedEl) { selectedEl.remove(); selectedEl = null; }
       }
     });
 
     // Edit mode
     let editModeActive = false;
+    let selectedEl = null;
     let isDragging = false;
     let draggedElement = null;
     let startX = 0, startY = 0, currentX = 0, currentY = 0;
@@ -83,13 +106,15 @@ const IFRAME_SHELL = `<!DOCTYPE html>
     }
     function onMouseOut(e) {
       if (e.target === draggedElement && isDragging) return;
-      e.target.style.outline = '';
-      e.target.style.outlineOffset = '';
-      e.target.style.cursor = '';
+      if (e.target !== selectedEl) {
+        e.target.style.outline = '';
+        e.target.style.outlineOffset = '';
+        e.target.style.cursor = '';
+      }
     }
     function onMouseDown(e) {
       e.stopPropagation();
-      const el = e.target;
+      var el = e.target;
       if (el.id === 'root' || el.id === 'error') return;
       draggedElement = el;
       startX = e.clientX; startY = e.clientY;
@@ -97,7 +122,7 @@ const IFRAME_SHELL = `<!DOCTYPE html>
     }
     function onMouseMove(e) {
       if (!draggedElement) return;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
+      var dx = e.clientX - startX, dy = e.clientY - startY;
       if (!isDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
         isDragging = true;
         draggedElement.style.outline = '2px dashed #00d4ff';
@@ -111,29 +136,30 @@ const IFRAME_SHELL = `<!DOCTYPE html>
     }
     function onMouseUp(e) {
       if (!draggedElement) return;
-      const el = draggedElement;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
+      var el = draggedElement;
+      var dx = e.clientX - startX, dy = e.clientY - startY;
       if (isDragging) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Apply final position with left/top (from drag_drop branch logic)
+        e.preventDefault(); e.stopPropagation();
         var cs = window.getComputedStyle(el);
         if (cs.position === 'static') el.style.position = 'relative';
-        var curLeft = parseFloat(cs.left) || 0;
-        var curTop = parseFloat(cs.top) || 0;
-        el.style.left = (curLeft + dx) + 'px';
-        el.style.top = (curTop + dy) + 'px';
+        el.style.left = ((parseFloat(cs.left) || 0) + dx) + 'px';
+        el.style.top = ((parseFloat(cs.top) || 0) + dy) + 'px';
         el.style.transform = '';
-
         var rect = el.getBoundingClientRect();
         window.parent.postMessage({ type: 'ELEMENT_DRAGGED', deltaX: Math.round(dx), deltaY: Math.round(dy),
           element: { tagName: el.tagName, className: el.className || '', textContent: (el.textContent||'').slice(0,100),
             rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height } } }, '*');
         el.style.outline = ''; el.style.opacity = ''; el.style.cursor = '';
       } else {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
+        // Deselect previous
+        if (selectedEl && selectedEl !== el) {
+          selectedEl.style.outline = '';
+          selectedEl.style.outlineOffset = '';
+        }
+        selectedEl = el;
+        el.style.outline = '2px solid #00d4ff';
+        el.style.outlineOffset = '2px';
         var rect = el.getBoundingClientRect();
         var cs = getComputedStyle(el);
         window.parent.postMessage({ type: 'ELEMENT_CLICKED', tagName: el.tagName, className: el.className || '',
@@ -157,6 +183,7 @@ const IFRAME_SHELL = `<!DOCTYPE html>
     function disableEditMode() {
       if (!editModeActive) return;
       editModeActive = false;
+      selectedEl = null;
       document.body.style.userSelect = '';
       document.removeEventListener('mouseover', onMouseOver, true);
       document.removeEventListener('mouseout', onMouseOut, true);
@@ -185,6 +212,15 @@ export const LivePreview = forwardRef<LivePreviewHandle, Props>(function LivePre
       } catch {
         return Promise.resolve("");
       }
+    },
+    applyStyle: (styles) => {
+      iframeRef.current?.contentWindow?.postMessage({ type: "APPLY_STYLE", styles }, "*");
+    },
+    applyText: (text) => {
+      iframeRef.current?.contentWindow?.postMessage({ type: "APPLY_TEXT", text }, "*");
+    },
+    deleteElement: () => {
+      iframeRef.current?.contentWindow?.postMessage({ type: "DELETE_ELEMENT" }, "*");
     },
   }));
 
@@ -240,16 +276,15 @@ export const LivePreview = forwardRef<LivePreviewHandle, Props>(function LivePre
 
 function ensureDefaultExport(code: string): string {
   let cleaned = code
-    .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
-    .replace(/^export\s+default\s+/gm, '')
+    .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, "")
+    .replace(/^export\s+default\s+/gm, "")
     .trim();
 
   if (!cleaned.includes('function App')) {
     const funcMatch = cleaned.match(/function\s+(\w+)\s*\(/);
-    if (funcMatch && funcMatch[1] !== 'App') {
-      cleaned = cleaned.replace(funcMatch[0], 'function App(');
+    if (funcMatch && funcMatch[1] !== "App") {
+      cleaned = cleaned.replace(funcMatch[0], "function App(");
     }
   }
-
   return cleaned;
 }

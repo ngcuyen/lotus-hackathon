@@ -1,13 +1,12 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Code2, RotateCcw, Zap, Eye, Box, Sparkles, Square, Palette, Moon, BarChart3, Plus, Edit3, Hand, Clock } from "lucide-react";
+import { Camera, Code2, RotateCcw, Zap, Eye, Box, Sparkles, Square, Palette, Moon, BarChart3, Plus, Edit3, Hand, Clock, Wand2 } from "lucide-react";
 import { type DemoSketch } from "./utils/demoSketches";
 import { CameraCapture } from "./components/CameraCapture";
-import { LivePreview } from "./components/LivePreview";
+import { LivePreview, type LivePreviewHandle } from "./components/LivePreview";
 import { CodePanel } from "./components/CodePanel";
 import { ProcessingOverlay } from "./components/ProcessingOverlay";
 import { VisualEditor } from "./components/VisualEditor";
-import { PanelCustomizer, CustomizationSettings } from "./components/PanelCustomizer";
 import { ThreePanelLayout } from "./components/ThreePanelLayout";
 import { InputPanel } from "./components/InputPanel";
 import { PreviewPanel } from "./components/PreviewPanel";
@@ -23,19 +22,12 @@ export default function App() {
   const [selectedPurpose, setSelectedPurpose] = useState<string | null>(null);
   const [showCustomStylePopover, setShowCustomStylePopover] = useState(false);
   const [customStyles, setCustomStyles] = useState<any[]>([]);
+  const customStylesRef = useRef<any[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [selectedElement, setSelectedElement] = useState<any>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [panelSettings, setPanelSettings] = useState<CustomizationSettings>({
-    panelOpacity: 75,
-    panelBlur: 12,
-    borderGlow: true,
-    animationSpeed: "normal",
-    colorScheme: "cyan",
-    fontSize: "medium",
-    spacing: "normal",
-  });
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const previewRef = useRef<LivePreviewHandle>(null);
 
   const BASE_STYLES = [
     { id: "modern", name: "Modern", icon: <Sparkles className="w-4 h-4" />, description: "Clean & minimal design" },
@@ -69,13 +61,31 @@ export default function App() {
     const newStyle = {
       id: `custom-${Date.now()}`,
       name: styleData.name,
-      icon: <Palette className="w-4 h-4" />,
-      description: styleData.description,
+      icon: <Wand2 className="w-4 h-4" />,
+      description: styleData.guidelines || styleData.description,
       custom: true,
-      data: styleData,
+      guidelines: styleData.guidelines || styleData.description,
     };
-    setCustomStyles(prev => [...prev, newStyle]);
+    setCustomStyles(prev => {
+      const next = [...prev, newStyle];
+      customStylesRef.current = next;
+      return next;
+    });
     setSelectedStyle(newStyle.id);
+  }, []);
+
+  const handleDeleteCustomStyle = useCallback((styleId: string) => {
+    setCustomStyles(prev => {
+      const next = prev.filter(s => s.id !== styleId);
+      customStylesRef.current = next;
+      return next;
+    });
+    if (selectedStyle === styleId) setSelectedStyle("modern");
+  }, [selectedStyle]);
+
+  // Get custom guidelines for current style (if it's a custom style)
+  const getGuidelines = useCallback((styleId: string) => {
+    return customStylesRef.current.find((s: any) => s.id === styleId)?.guidelines;
   }, []);
 
   const handleElementSelected = useCallback((element: any) => {
@@ -106,7 +116,6 @@ export default function App() {
     console.log("[SAVE] Saving edit...");
     try {
       const newVersion = bumpVersion();
-      // Wrap snapshot HTML as a static React component
       const editedComponent = snapshotHtml
         ? `export default function App() {\n  return <div dangerouslySetInnerHTML={{__html: \`${snapshotHtml.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`}} />;\n}`
         : result.component;
@@ -129,9 +138,9 @@ export default function App() {
   const handleCapture = useCallback(
     (imageBase64: string) => {
       setSketchImage(imageBase64);
-      generate(imageBase64, undefined, selectedStyle, selectedPurpose ?? undefined);
+      generate(imageBase64, undefined, selectedStyle, selectedPurpose ?? undefined, getGuidelines(selectedStyle));
     },
-    [generate, selectedStyle, selectedPurpose]
+    [generate, selectedStyle, selectedPurpose, getGuidelines]
   );
 
   const handleDemoSelect = useCallback(
@@ -155,9 +164,9 @@ export default function App() {
 
   const handleRegenerate = useCallback(() => {
     if (sketchImage) {
-      generate(sketchImage, undefined, selectedStyle, selectedPurpose ?? undefined);
+      generate(sketchImage, undefined, selectedStyle, selectedPurpose ?? undefined, getGuidelines(selectedStyle));
     }
-  }, [sketchImage, generate, selectedStyle]);
+  }, [sketchImage, generate, selectedStyle, selectedPurpose, getGuidelines]);
 
   const handleLoadFromHistory = useCallback((component: string, description: string) => {
     loadResult(component, description);
@@ -204,6 +213,7 @@ export default function App() {
               options={STYLES}
               selected={selectedStyle}
               onSelect={setSelectedStyle}
+              onDelete={handleDeleteCustomStyle}
             />
             {/* Add custom style button */}
             <button
@@ -268,6 +278,7 @@ export default function App() {
             <Clock className="w-3.5 h-3.5" />
           </button>
 
+
           {/* Edit Mode Toggle */}
           {result && (
             <>
@@ -312,6 +323,7 @@ export default function App() {
 
           {/* Action buttons */}
           <div className="flex items-center gap-1.5">
+
             {result && (
               <>
                 <button
@@ -423,11 +435,11 @@ export default function App() {
           }
           centerPanel={
             <PreviewPanel
+              ref={previewRef}
               result={result}
               status={status}
               streamingCode={streamingCode}
               editMode={editMode}
-              selectedElement={selectedElement}
               onElementSelected={handleElementSelected}
               onElementDragged={handleElementDragged}
               onModify={handleModify}
@@ -438,11 +450,11 @@ export default function App() {
           }
           rightPanel={
             selectedElement ? (
-              <PanelCustomizer
-                onApply={(settings) => {
-                  setPanelSettings(settings);
-                  console.log("Applied panel settings:", settings);
-                }}
+              <VisualEditor
+                selectedElement={selectedElement}
+                previewRef={previewRef}
+                onModify={handleModify}
+                onClose={() => setSelectedElement(null)}
               />
             ) : showHistory ? (
               <HistoryPanel onLoad={handleLoadFromHistory} sessionId={sessionId} />
