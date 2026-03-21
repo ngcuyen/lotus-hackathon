@@ -1,0 +1,172 @@
+<svg width="1440" height="900" viewBox="0 0 1440 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Grid pattern 40px -->
+    <pattern id="grid-sm" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,212,255,0.04)" stroke-width="1"/>
+    </pattern>
+    <!-- Grid pattern 200px bold -->
+    <pattern id="grid-lg" width="200" height="200" patternUnits="userSpaceOnUse">
+      <path d="M 200 0 L 0 0 0 200" fill="none" stroke="rgba(0,212,255,0.07)" stroke-width="1"/>
+    </pattern>
+
+    <!-- Ambient glow left -->
+    <radialGradient id="glow-left" cx="20%" cy="40%" r="45%">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Ambient glow right -->
+    <radialGradient id="glow-right" cx="80%" cy="60%" r="40%">
+      <stop offset="0%" stop-color="#7b3fff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#7b3fff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Ambient glow center -->
+    <radialGradient id="glow-center" cx="50%" cy="50%" r="35%">
+      <stop offset="0%" stop-color="#ff6a00" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#ff6a00" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Scanline gradient -->
+    <linearGradient id="scan-line" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="transparent"/>
+      <stop offset="47%"  stop-color="rgba(0,212,255,0.015)"/>
+      <stop offset="50%"  stop-color="rgba(0,212,255,0.05)"/>
+      <stop offset="53%"  stop-color="rgba(0,212,255,0.015)"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base background -->
+  <rect width="1440" height="900" fill="#0a0f1a"/>
+
+  <!-- Scanline repeating overlay -->
+  <rect width="1440" height="900" fill="none" opacity="0.4">
+    <animate attributeName="y" from="-900" to="900" dur="8s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Grid layers -->
+  <rect width="1440" height="900" fill="url(#grid-sm)"/>
+  <rect width="1440" height="900" fill="url(#grid-lg)"/>
+
+  <!-- Ambient glows -->
+  <rect width="1440" height="900" fill="url(#glow-left)"/>
+  <rect width="1440" height="900" fill="url(#glow-right)"/>
+  <rect width="1440" height="900" fill="url(#glow-center)"/>
+
+  <!-- Horizontal scanline sweep -->
+  <rect width="1440" height="120" y="380" fill="url(#scan-line)" opacity="0.5"/>
+
+  <!-- ══ CIRCUIT TRACES — CYAN ══ -->
+  <g opacity="0.18" stroke="#00d4ff" stroke-width="1" fill="none">
+    <!-- Top left circuit -->
+    <path d="M0 80 H140 V40 H280 V80 H380"/>
+    <path d="M0 160 H70 V210 H200 V160 H300 V110"/>
+    <path d="M0 320 H100 V280 H200"/>
+    <!-- Node dots -->
+    <circle cx="140" cy="80"  r="3.5" fill="#00d4ff" stroke="none"/>
+    <circle cx="280" cy="80"  r="3.5" fill="#00d4ff" stroke="none"/>
+    <circle cx="70"  cy="210" r="3.5" fill="#00d4ff" stroke="none"/>
+    <circle cx="200" cy="210" r="3.5" fill="#00d4ff" stroke="none"/>
+    <circle cx="100" cy="280" r="3.5" fill="#00d4ff" stroke="none"/>
+    <!-- Hollow node rings -->
+    <circle cx="140" cy="80"  r="6" fill="none" stroke="#00d4ff" stroke-width="0.8" opacity="0.4"/>
+    <circle cx="280" cy="80"  r="6" fill="none" stroke="#00d4ff" stroke-width="0.8" opacity="0.4"/>
+  </g>
+
+  <!-- ══ CIRCUIT TRACES — ORANGE ══ -->
+  <g opacity="0.14" stroke="#ff6a00" stroke-width="1" fill="none">
+    <!-- Bottom right circuit -->
+    <path d="M1440 780 H1300 V820 H1160 V780 H1060"/>
+    <path d="M1440 660 H1370 V620 H1240"/>
+    <path d="M1440 540 H1320 V580 H1200 V540 H1100"/>
+    <!-- Node dots -->
+    <circle cx="1300" cy="820" r="3.5" fill="#ff6a00" stroke="none"/>
+    <circle cx="1160" cy="780" r="3.5" fill="#ff6a00" stroke="none"/>
+    <circle cx="1370" cy="620" r="3.5" fill="#ff6a00" stroke="none"/>
+    <circle cx="1320" cy="580" r="3.5" fill="#ff6a00" stroke="none"/>
+    <circle cx="1200" cy="540" r="3.5" fill="#ff6a00" stroke="none"/>
+    <!-- Hollow rings -->
+    <circle cx="1300" cy="820" r="6" fill="none" stroke="#ff6a00" stroke-width="0.8" opacity="0.4"/>
+    <circle cx="1160" cy="780" r="6" fill="none" stroke="#ff6a00" stroke-width="0.8" opacity="0.4"/>
+  </g>
+
+  <!-- ══ CIRCUIT TRACES — PURPLE (top right) ══ -->
+  <g opacity="0.12" stroke="#7b3fff" stroke-width="1" fill="none">
+    <path d="M1440 120 H1320 V80 H1180"/>
+    <path d="M1440 200 H1380 V240 H1260 V200"/>
+    <circle cx="1320" cy="80"  r="3.5" fill="#7b3fff" stroke="none"/>
+    <circle cx="1380" cy="240" r="3.5" fill="#7b3fff" stroke="none"/>
+    <circle cx="1260" cy="200" r="3.5" fill="#7b3fff" stroke="none"/>
+  </g>
+
+  <!-- ══ WIREFRAME UI GHOST (center) ══ -->
+  <g opacity="0.055" stroke="#00d4ff" stroke-width="1" fill="none">
+    <!-- Main window -->
+    <rect x="520" y="220" width="400" height="460" rx="4"/>
+    <!-- Top bar -->
+    <rect x="520" y="220" width="400" height="36"/>
+    <!-- Sidebar -->
+    <rect x="520" y="256" width="100" height="424"/>
+    <!-- Content area blocks -->
+    <rect x="636" y="276" width="264" height="80" rx="2"/>
+    <rect x="636" y="372" width="120" height="60" rx="2"/>
+    <rect x="770" y="372" width="130" height="60" rx="2"/>
+    <rect x="636" y="448" width="264" height="100" rx="2"/>
+    <rect x="636" y="564" width="264" height="80" rx="2"/>
+    <!-- Nav dots -->
+    <circle cx="548" cy="290" r="4"/>
+    <circle cx="548" cy="320" r="4"/>
+    <circle cx="548" cy="350" r="4"/>
+    <circle cx="548" cy="380" r="4"/>
+    <!-- Window chrome dots -->
+    <circle cx="540" cy="238" r="3"/>
+    <circle cx="552" cy="238" r="3"/>
+    <circle cx="564" cy="238" r="3"/>
+  </g>
+
+  <!-- ══ HEX DECORATIONS ══ -->
+  <!-- Large hex top-right -->
+  <polygon
+    points="1280,60 1340,94 1340,162 1280,196 1220,162 1220,94"
+    fill="none" stroke="#00d4ff" stroke-width="0.8" opacity="0.07"
+  />
+  <!-- Medium hex bottom-left -->
+  <polygon
+    points="160,740 200,763 200,809 160,832 120,809 120,763"
+    fill="none" stroke="#ff6a00" stroke-width="0.8" opacity="0.08"
+  />
+  <!-- Small hex center-right -->
+  <polygon
+    points="1100,440 1128,456 1128,488 1100,504 1072,488 1072,456"
+    fill="none" stroke="#7b3fff" stroke-width="0.8" opacity="0.07"
+  />
+
+  <!-- ══ DIAGONAL ACCENT LINES ══ -->
+  <line x1="0"    y1="900" x2="300" y2="0"    stroke="rgba(0,212,255,0.025)" stroke-width="1"/>
+  <line x1="1140" y1="0"   x2="1440" y2="900" stroke="rgba(123,63,255,0.03)" stroke-width="1"/>
+  <line x1="600"  y1="0"   x2="0"    y2="600" stroke="rgba(0,212,255,0.015)" stroke-width="1"/>
+
+  <!-- ══ CORNER HUD BRACKETS ══ -->
+  <!-- Top-left -->
+  <path d="M20,50 L20,20 L50,20" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <!-- Top-right -->
+  <path d="M1420,50 L1420,20 L1390,20" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+  <!-- Bottom-left -->
+  <path d="M20,850 L20,880 L50,880" fill="none" stroke="#ff6a00" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
+  <!-- Bottom-right -->
+  <path d="M1420,850 L1420,880 L1390,880" fill="none" stroke="#ff6a00" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- ══ STATUS BAR (bottom) ══ -->
+  <rect x="0" y="886" width="1440" height="1" fill="rgba(0,212,255,0.12)"/>
+  <rect x="0" y="887" width="1440" height="13" fill="rgba(10,15,26,0.9)"/>
+  <text x="24"   y="897" font-family="'Courier New',monospace" font-size="8" letter-spacing="2" fill="rgba(0,212,255,0.4)">SYS:READY</text>
+  <text x="720"  y="897" text-anchor="middle" font-family="'Courier New',monospace" font-size="8" letter-spacing="3" fill="rgba(0,212,255,0.25)">SKETCH2APP // NEURAL INTERFACE v2.4.0</text>
+  <text x="1416" y="897" text-anchor="end" font-family="'Courier New',monospace" font-size="8" letter-spacing="2" fill="rgba(255,106,0,0.35)">2026.03.21</text>
+
+  <!-- Scanline texture overlay (repeating horizontal lines) -->
+  <rect width="1440" height="900" fill="none" opacity="1">
+    <pattern id="scanlines" width="1" height="4" patternUnits="userSpaceOnUse">
+      <rect width="1" height="1" y="0" fill="rgba(0,0,0,0.08)"/>
+    </pattern>
+  </rect>
+  <rect width="1440" height="900" fill="url(#scanlines)" opacity="0.5"/>
+</svg>

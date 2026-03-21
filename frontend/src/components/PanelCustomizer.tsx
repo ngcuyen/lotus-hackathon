@@ -1,0 +1,307 @@
+import { useState } from "react";
+import { Settings, Palette, Sliders, Sparkles, Layers } from "lucide-react";
+
+interface PanelCustomizerProps {
+  onApply: (settings: CustomizationSettings) => void;
+}
+
+export interface CustomizationSettings {
+  panelOpacity: number;
+  panelBlur: number;
+  borderGlow: boolean;
+  animationSpeed: "slow" | "normal" | "fast";
+  colorScheme: "cyan" | "orange" | "purple" | "green";
+  fontSize: "small" | "medium" | "large";
+  spacing: "compact" | "normal" | "spacious";
+}
+
+export function PanelCustomizer({ onApply }: PanelCustomizerProps) {
+  const [panelOpacity, setPanelOpacity] = useState(75);
+  const [panelBlur, setPanelBlur] = useState(12);
+  const [borderGlow, setBorderGlow] = useState(true);
+  const [animationSpeed, setAnimationSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [colorScheme, setColorScheme] = useState<"cyan" | "orange" | "purple" | "green">("cyan");
+  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  const [spacing, setSpacing] = useState<"compact" | "normal" | "spacious">("normal");
+
+  const handleApply = () => {
+    onApply({
+      panelOpacity,
+      panelBlur,
+      borderGlow,
+      animationSpeed,
+      colorScheme,
+      fontSize,
+      spacing,
+    });
+  };
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(17, 24, 39, 0.85)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
+      <div className="flex-1 overflow-y-auto p-4" style={{ scrollbarWidth: "thin" }}>
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <Settings className="w-4 h-4" style={{ color: "var(--scifi-cyan)" }} />
+          <span
+            className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}
+          >
+            SETTINGS
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {/* Panel Transparency */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              <Layers className="w-3 h-3" />
+              PANEL OPACITY ({panelOpacity}%)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={panelOpacity}
+              onChange={(e) => setPanelOpacity(parseInt(e.target.value))}
+              style={{
+                width: "100%",
+                accentColor: "var(--scifi-cyan)",
+              }}
+            />
+            <div className="flex justify-between mt-1">
+              <span className="text-[9px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>Transparent</span>
+              <span className="text-[9px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>Opaque</span>
+            </div>
+          </div>
+
+          {/* Panel Blur */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              <Sparkles className="w-3 h-3" />
+              BACKGROUND BLUR ({panelBlur}px)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="24"
+              value={panelBlur}
+              onChange={(e) => setPanelBlur(parseInt(e.target.value))}
+              style={{
+                width: "100%",
+                accentColor: "var(--scifi-cyan)",
+              }}
+            />
+            <div className="flex justify-between mt-1">
+              <span className="text-[9px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>No Blur</span>
+              <span className="text-[9px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>Max Blur</span>
+            </div>
+          </div>
+
+          {/* Border Glow Toggle */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              BORDER GLOW
+            </label>
+            <button
+              onClick={() => setBorderGlow(!borderGlow)}
+              style={{
+                width: "100%",
+                height: "32px",
+                clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
+                backgroundColor: borderGlow ? "var(--scifi-cyan)" : "transparent",
+                border: `1px solid var(--scifi-cyan)`,
+                color: borderGlow ? "var(--scifi-bg)" : "var(--scifi-cyan)",
+                fontFamily: "'Courier New', monospace",
+                fontSize: "0.7rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+            >
+              {borderGlow ? "ENABLED" : "DISABLED"}
+            </button>
+          </div>
+
+          {/* Color Scheme */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              <Palette className="w-3 h-3" />
+              COLOR SCHEME
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: "cyan", label: "CYAN", color: "#00d4ff" },
+                { id: "orange", label: "ORANGE", color: "#ff6a00" },
+                { id: "purple", label: "PURPLE", color: "#7b3fff" },
+                { id: "green", label: "GREEN", color: "#39ff14" },
+              ].map((scheme) => (
+                <button
+                  key={scheme.id}
+                  onClick={() => setColorScheme(scheme.id as any)}
+                  style={{
+                    height: "32px",
+                    clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
+                    backgroundColor: colorScheme === scheme.id ? scheme.color : "transparent",
+                    border: `1px solid ${scheme.color}`,
+                    color: colorScheme === scheme.id ? "var(--scifi-bg)" : scheme.color,
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: "0.65rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {scheme.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Animation Speed */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              <Sliders className="w-3 h-3" />
+              ANIMATION SPEED
+            </label>
+            <div className="flex gap-1">
+              {(["slow", "normal", "fast"] as const).map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => setAnimationSpeed(speed)}
+                  style={{
+                    flex: 1,
+                    height: "28px",
+                    clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
+                    backgroundColor: animationSpeed === speed ? "var(--scifi-cyan)" : "transparent",
+                    border: `1px solid var(--scifi-cyan)`,
+                    color: animationSpeed === speed ? "var(--scifi-bg)" : "var(--scifi-cyan)",
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: "0.65rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {speed}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Size */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              FONT SIZE
+            </label>
+            <div className="flex gap-1">
+              {(["small", "medium", "large"] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setFontSize(size)}
+                  style={{
+                    flex: 1,
+                    height: "28px",
+                    clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
+                    backgroundColor: fontSize === size ? "var(--scifi-cyan)" : "transparent",
+                    border: `1px solid var(--scifi-cyan)`,
+                    color: fontSize === size ? "var(--scifi-bg)" : "var(--scifi-cyan)",
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: "0.65rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {size[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Spacing */}
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace", fontWeight: "600" }}>
+              SPACING
+            </label>
+            <div className="flex gap-1">
+              {(["compact", "normal", "spacious"] as const).map((space) => (
+                <button
+                  key={space}
+                  onClick={() => setSpacing(space)}
+                  style={{
+                    flex: 1,
+                    height: "28px",
+                    clipPath: "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
+                    backgroundColor: spacing === space ? "var(--scifi-cyan)" : "transparent",
+                    border: `1px solid var(--scifi-cyan)`,
+                    color: spacing === space ? "var(--scifi-bg)" : "var(--scifi-cyan)",
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: "0.65rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {space[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Apply Button */}
+          <button
+            onClick={handleApply}
+            style={{
+              width: "100%",
+              height: "36px",
+              clipPath: "polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px)",
+              backgroundColor: "var(--scifi-green)",
+              border: "1px solid var(--scifi-green)",
+              color: "var(--scifi-bg)",
+              fontFamily: "'Courier New', monospace",
+              fontSize: "0.75rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              boxShadow: "0 0 16px var(--scifi-green)80",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 0 24px var(--scifi-green)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 0 16px var(--scifi-green)80";
+            }}
+          >
+            APPLY SETTINGS
+          </button>
+
+          {/* Preview Note */}
+          <div
+            className="text-center p-2"
+            style={{
+              border: "1px dashed rgba(0, 212, 255, 0.3)",
+              borderRadius: "2px",
+            }}
+          >
+            <span className="text-[10px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
+              Settings will update the entire UI theme
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

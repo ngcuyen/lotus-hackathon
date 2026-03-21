@@ -3,12 +3,48 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Sci-Fi Color Tokens */
+    --scifi-cyan: #00d4ff;
+    --scifi-orange: #ff6a00;
+    --scifi-green: #39ff14;
+    --scifi-bg: #0a0f1a;
+    --scifi-panel: #111827;
+    --scifi-text: #e5e7eb;
+    --scifi-text-dim: #9ca3af;
+  }
+
   * {
     box-sizing: border-box;
   }
+
   body {
-    font-family: "DM Sans", system-ui, sans-serif;
+    font-family: 'Courier New', 'Courier', monospace;
     -webkit-font-smoothing: antialiased;
+    background-color: var(--scifi-bg);
+    background-image: url('/background.svg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: var(--scifi-text);
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('/background.svg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 1;
+    z-index: -1;
+    pointer-events: none;
   }
 }
 
@@ -30,20 +66,33 @@
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 2px; }
+/* Custom scrollbar - Sci-Fi themed */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--scifi-bg); border-left: 1px solid rgba(0, 212, 255, 0.2); }
+::-webkit-scrollbar-thumb { background: var(--scifi-cyan); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--scifi-orange); }
 
-/* Processing spinner */
+/* Sci-Fi Animations */
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px currentColor; }
+  50% { opacity: 0.6; box-shadow: 0 0 16px currentColor; }
+}
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
 .spinner {
   width: 32px; height: 32px;
-  border: 2.5px solid #e5e5e5;
-  border-top-color: #171717;
-  border-radius: 50%;
+  border: 2.5px solid rgba(0, 212, 255, 0.2);
+  border-top-color: var(--scifi-cyan);
+  border-radius: 0;
   animation: spin 0.8s linear infinite;
 }
 
-/* Sketch canvas crosshair */
 .sketch-canvas { cursor: crosshair; }

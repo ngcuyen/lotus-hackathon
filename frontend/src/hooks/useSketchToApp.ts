@@ -11,6 +11,7 @@ interface Latency {
 
 interface UseSketchToAppReturn {
   generate: (imageBase64: string, modification?: string, style?: string) => Promise<void>;
+  loadMockData: () => void;
   result: GenerateResponse | null;
   status: Status;
   error: string | null;
@@ -85,5 +86,72 @@ export function useSketchToApp(): UseSketchToAppReturn {
     previousCodeRef.current = null;
   }, []);
 
-  return { generate, result, status, error, latency, reset };
+  const loadMockData = useCallback(() => {
+    const mockResult: GenerateResponse = {
+      component: `import { useState } from 'react';
+
+export default function App() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+            <p className="text-sm text-gray-500">Sign in to your account</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              />
+            </div>
+
+            <button className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 transition-all shadow-lg">
+              Sign In
+            </button>
+
+            <p className="text-center text-sm text-blue-600 hover:underline cursor-pointer">
+              Forgot password?
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}`,
+      description: "Login form with email and password inputs"
+    };
+
+    setResult(mockResult);
+    previousCodeRef.current = mockResult.component;
+    setLatency({
+      ai: 3.5,
+      render: 0.2,
+      total: 3.7,
+    });
+    setStatus("done");
+    console.log("✅ Mock data loaded successfully");
+  }, []);
+
+  return { generate, loadMockData, result, status, error, latency, reset };
 }
