@@ -29,7 +29,11 @@ except ImportError:
 # Add lambda dir to path so we can import prompts
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "lambda"))
-from prompts import SYSTEM_PROMPT, build_messages, get_system_prompt, STYLE_PRESETS
+from prompts import (
+    SYSTEM_PROMPT, build_messages, get_system_prompt,
+    STYLE_PRESETS, PURPOSE_INTENTS,
+    ANALYZE_SKETCH_SYSTEM_PROMPT, build_analysis_messages,
+)
 
 app = Flask(__name__)
 CORS(app)
@@ -37,7 +41,7 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MAX_TOKENS = 4096
+MAX_TOKENS = 8192  # Increased from 4096 — complex UIs need 150-250 lines of JSX
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
@@ -62,8 +66,9 @@ else:
     logger.info(f"Using AWS Bedrock (model: {MODEL_ID})")
 
 
-def _call_openai(messages, system_prompt=SYSTEM_PROMPT):
+def _call_openai(messages, system_prompt=SYSTEM_PROMPT, max_tokens=None):
     """Call OpenAI API. Convert Anthropic message format to OpenAI format."""
+    tokens = max_tokens or MAX_TOKENS
     oai_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         content = msg["content"]
@@ -80,27 +85,29 @@ def _call_openai(messages, system_prompt=SYSTEM_PROMPT):
                     parts.append({"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}})
             oai_messages.append({"role": msg["role"], "content": parts})
     response = client.chat.completions.create(
-        model=MODEL_ID, messages=oai_messages, max_tokens=MAX_TOKENS, temperature=0.3,
+        model=MODEL_ID, messages=oai_messages, max_tokens=tokens, temperature=0.3,
     )
     return response.choices[0].message.content
 
 
-def _call_anthropic(messages, system_prompt=SYSTEM_PROMPT):
+def _call_anthropic(messages, system_prompt=SYSTEM_PROMPT, max_tokens=None):
     """Call Anthropic API directly."""
+    tokens = max_tokens or MAX_TOKENS
     response = client.messages.create(
         model=MODEL_ID, system=system_prompt, messages=messages,
-        max_tokens=MAX_TOKENS, temperature=0.3,
+        max_tokens=tokens, temperature=0.3,
     )
     return response.content[0].text
 
 
-def _call_bedrock(messages, system_prompt=SYSTEM_PROMPT):
+def _call_bedrock(messages, system_prompt=SYSTEM_PROMPT, max_tokens=None):
     """Call AWS Bedrock."""
+    tokens = max_tokens or MAX_TOKENS
     response = client.invoke_model(
         modelId=MODEL_ID, contentType="application/json", accept="application/json",
         body=json.dumps({
             "anthropic_version": "bedrock-2023-05-31", "system": system_prompt,
-            "messages": messages, "max_tokens": MAX_TOKENS, "temperature": 0.3,
+            "messages": messages, "max_tokens": tokens, "temperature": 0.3,
         }),
     )
     response_body = json.loads(response["body"].read())
@@ -111,42 +118,156 @@ def _call_ai(messages):
     return _call_ai_with_prompt(messages, SYSTEM_PROMPT)
 
 
-def _call_ai_with_prompt(messages, system_prompt):
+def _call_ai_with_prompt(messages, system_prompt, max_tokens=None):
     if BACKEND == "openai":
-        return _call_openai(messages, system_prompt)
+        return _call_openai(messages, system_prompt, max_tokens=max_tokens)
     elif BACKEND == "anthropic":
-        return _call_anthropic(messages, system_prompt)
-    return _call_bedrock(messages, system_prompt)
+        return _call_anthropic(messages, system_prompt, max_tokens=max_tokens)
+    return _call_bedrock(messages, system_prompt, max_tokens=max_tokens)
+
+
+def _parse_analysis(raw_text: str):
+    """
+    Parse the sketch analysis JSON from agent step 1.
+    Returns None on failure — non-fatal, pipeline falls back to single-call.
+    """
+    text = raw_text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+    try:
+        data = json.loads(text)
+        if "element_count" in data and "layout" in data:
+            return data
+        logger.warning(f"[AGENT] Analysis JSON missing required fields: {list(data.keys())}")
+        return None
+    except json.JSONDecodeError as e:
+        logger.warning(f"[AGENT] Analysis parse failed: {e} | raw: {text[:200]}")
+        return None
 
 
 @app.route("/api/generate", methods=["POST"])
 def generate():
-    """Sync generation endpoint."""
+    """
+    2-step agent pipeline:
+      Step 1 — Analyze sketch (dedicated vision call, ~600 tokens output)
+      Step 2 — Generate code (grounded in analysis, up to 3 retry attempts)
+
+    Falls back gracefully to single-call if analysis fails.
+    """
     body = request.json
     image_base64 = body.get("image_base64")
     previous_code = body.get("previous_code")
     modification = body.get("modification")
     style = body.get("style", "modern")
+    purpose = body.get("purpose")
 
     if not image_base64:
         return jsonify({"error": "image_base64 is required"}), 400
 
+    total_start = time.time()
+    system_prompt = get_system_prompt(style)
+
     try:
-        start = time.time()
-        system_prompt = get_system_prompt(style)
-        logger.info(f"[1/4] Received image ({len(image_base64)} chars), style={style}")
-        messages = build_messages(image_base64, previous_code, modification, style)
-        logger.info(f"[2/4] Built messages ({len(messages)} messages), calling {BACKEND}...")
-        raw_text = _call_ai_with_prompt(messages, system_prompt)
-        elapsed = time.time() - start
-        logger.info(f"[3/4] AI responded in {elapsed:.2f}s ({len(raw_text)} chars)")
-        result = _parse_response(raw_text)
-        logger.info(f"[4/4] Parsed — description: {result.get('description', 'N/A')}")
-        result["latency_seconds"] = round(elapsed, 2)
+        # ── AGENT STEP 1: Analyze sketch ──────────────────────────────────────
+        # Skip analysis for text-only modifications (image hasn't changed)
+        sketch_analysis = None
+        is_text_only_modification = bool(previous_code and modification)
+
+        if not is_text_only_modification:
+            t1 = time.time()
+            logger.info(f"[AGENT 1/2] Analyzing sketch ({len(image_base64)} chars) via {BACKEND}...")
+            try:
+                analysis_msgs = build_analysis_messages(image_base64)
+                raw_analysis = _call_ai_with_prompt(
+                    analysis_msgs,
+                    ANALYZE_SKETCH_SYSTEM_PROMPT,
+                    max_tokens=600,   # Analysis is short — save tokens + latency
+                )
+                sketch_analysis = _parse_analysis(raw_analysis)
+                t1_elapsed = time.time() - t1
+                if sketch_analysis:
+                    logger.info(
+                        f"[AGENT 1/2] Analysis done in {t1_elapsed:.2f}s: "
+                        f"layout={sketch_analysis.get('layout')}, "
+                        f"elements={sketch_analysis.get('element_count')}, "
+                        f"complexity={sketch_analysis.get('complexity')}"
+                    )
+                else:
+                    logger.warning(f"[AGENT 1/2] Analysis failed in {t1_elapsed:.2f}s — falling back to single-call")
+            except Exception as e:
+                logger.warning(f"[AGENT 1/2] Analysis call error: {e} — falling back to single-call")
+                sketch_analysis = None
+        else:
+            logger.info(f"[AGENT 1/2] Skipping analysis (text-only modification)")
+
+        # ── AGENT STEP 2: Generate code (with auto-retry) ─────────────────────
+        result = None
+        last_error = None
+        MAX_ATTEMPTS = 3
+
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            t2 = time.time()
+            logger.info(
+                f"[AGENT 2/2] Generating code attempt {attempt}/{MAX_ATTEMPTS} "
+                f"(style={style}, purpose={purpose}, analysis={'✓' if sketch_analysis else '✗'})..."
+            )
+
+            messages = build_messages(
+                image_base64, previous_code, modification,
+                style, purpose, sketch_analysis=sketch_analysis,
+            )
+
+            raw_text = _call_ai_with_prompt(messages, system_prompt)
+            t2_elapsed = time.time() - t2
+
+            candidate = _parse_response(raw_text)
+            component = candidate.get("component", "")
+
+            # Validate: must have a real component (not empty / too short)
+            is_valid = (
+                "export default" in component
+                and len(component) > 300
+                and "function App" in component
+            )
+
+            if is_valid:
+                result = candidate
+                logger.info(
+                    f"[AGENT 2/2] Code generated in {t2_elapsed:.2f}s "
+                    f"({len(component)} chars) ✅"
+                )
+                break
+            else:
+                last_error = (
+                    f"Output too short ({len(component)} chars) or missing export default"
+                )
+                logger.warning(
+                    f"[AGENT 2/2] Attempt {attempt} invalid: {last_error}"
+                    + (" — retrying..." if attempt < MAX_ATTEMPTS else " — using anyway")
+                )
+                # On retry: disable sketch_analysis to avoid repeating same mistake
+                # (analysis might have been wrong — let the model re-analyze freely)
+                if attempt == 2:
+                    sketch_analysis = None
+                    logger.info("[AGENT 2/2] Disabled analysis for final retry")
+
+        # Use last candidate even if invalid (better than nothing)
+        if result is None:
+            result = _parse_response(raw_text)
+
+        total_elapsed = time.time() - total_start
+        logger.info(f"[AGENT DONE] Total pipeline time: {total_elapsed:.2f}s")
+
+        result["latency_seconds"] = round(total_elapsed, 2)
+        result["sketch_analysis"] = sketch_analysis  # Pass back to FE (future: display in UI)
+        result["attempts"] = attempt
         return jsonify(result)
 
     except Exception as e:
-        logger.error(f"Generation error: {e}", exc_info=True)
+        logger.error(f"[AGENT ERROR] {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -155,6 +276,13 @@ def get_styles():
     """Return available style presets."""
     styles = {k: {"name": v["name"]} for k, v in STYLE_PRESETS.items()}
     return jsonify(styles)
+
+
+@app.route("/api/purposes", methods=["GET"])
+def get_purposes():
+    """Return available purpose intents."""
+    purposes = {k: {"name": v["name"], "emoji": v["emoji"]} for k, v in PURPOSE_INTENTS.items()}
+    return jsonify(purposes)
 
 
 @app.route("/api/generate-stream", methods=["POST"])
@@ -218,46 +346,6 @@ def generate_stream():
                         yield text
 
     return Response(stream(), mimetype="text/plain")
-
-
-@app.route("/api/mock-generate", methods=["POST"])
-def mock_generate():
-    """Mock endpoint — returns a hardcoded login form. No API key needed."""
-    time.sleep(2)
-    return jsonify({
-        "component": '''import { useState } from "react";
-
-export default function App() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-            <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" />
-            </div>
-            <button className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-blue-700 transition-all">Sign in</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}''',
-        "description": "Login page with email/password form",
-        "latency_seconds": 2.0,
-    })
 
 
 def _parse_response(raw_text: str) -> dict:

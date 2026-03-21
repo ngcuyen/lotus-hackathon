@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { generateFromSketch, type GenerateResponse } from "../api/generate";
 
 type Status = "idle" | "processing" | "done" | "error";
+export type AgentStep = "analyzing" | "generating" | null;
 
 interface Latency {
   ai: number;
@@ -10,80 +11,95 @@ interface Latency {
 }
 
 interface UseSketchToAppReturn {
-  generate: (imageBase64: string, modification?: string, style?: string) => Promise<void>;
+  generate: (imageBase64: string, modification?: string, style?: string, purpose?: string) => Promise<void>;
   result: GenerateResponse | null;
   status: Status;
+  agentStep: AgentStep;
   error: string | null;
   latency: Latency | null;
   reset: () => void;
 }
 
-/**
- * useSketchToApp manages the entire generation lifecycle:
- * 1. Send sketch image to backend
- * 2. Track processing status
- * 3. Receive generated code
- * 4. Measure latency for display
- */
+// Backend step 1 (analysis) typically takes 2-4s.
+// We switch to "generating" after this delay so the overlay stays in sync.
+const ANALYSIS_PHASE_MS = 3500;
+
 export function useSketchToApp(): UseSketchToAppReturn {
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [status, setStatus] = useState<Status>("idle");
+  const [agentStep, setAgentStep] = useState<AgentStep>(null);
   const [error, setError] = useState<string | null>(null);
   const [latency, setLatency] = useState<Latency | null>(null);
   const previousCodeRef = useRef<string | null>(null);
+  const stepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string) => {
+  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string, purpose?: string) => {
     setStatus("processing");
     setError(null);
+    setAgentStep("analyzing");
+
+    // Schedule switch to "generating" phase
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+    // Text-only modifications skip analysis step — jump straight to generating
+    const isTextOnly = !!(previousCodeRef.current && modification && !imageBase64);
+    if (isTextOnly) {
+      setAgentStep("generating");
+    } else {
+      stepTimerRef.current = setTimeout(() => setAgentStep("generating"), ANALYSIS_PHASE_MS);
+    }
+
     const startTime = performance.now();
-    console.log("[1/4] Starting generation, image size:", imageBase64.length, "chars, style:", style);
+    console.log("[AGENT] Starting, image:", imageBase64.length, "chars | style:", style, "| purpose:", purpose);
 
     try {
-      console.log("[2/4] Calling API...");
       const response = await generateFromSketch({
         image_base64: imageBase64,
         previous_code: previousCodeRef.current || undefined,
         modification,
         style,
+        purpose,
       });
 
       const aiTime = performance.now() - startTime;
-      console.log("[3/4] API responded in", (aiTime / 1000).toFixed(2) + "s");
-      console.log("[3/4] Description:", response.description);
-      console.log("[3/4] Component length:", response.component?.length, "chars");
-      console.log("[3/4] Component preview:", response.component?.substring(0, 200));
-      const renderStart = performance.now();
+      console.log("[AGENT] API done in", (aiTime / 1000).toFixed(2) + "s");
+      console.log("[AGENT] Description:", response.description);
+      console.log("[AGENT] Component length:", response.component?.length, "chars");
 
+      const renderStart = performance.now();
       setResult(response);
       previousCodeRef.current = response.component;
 
-      // Small delay to measure render time
       requestAnimationFrame(() => {
         const renderTime = performance.now() - renderStart;
-        console.log("[4/4] Render time:", (renderTime / 1000).toFixed(2) + "s");
         setLatency({
           ai: aiTime / 1000,
           render: renderTime / 1000,
           total: (aiTime + renderTime) / 1000,
         });
+        setAgentStep(null);
         setStatus("done");
-        console.log("[4/4] Status: done ✅");
+        console.log("[AGENT] Done ✅");
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
-      console.error("[ERROR]", message);
+      console.error("[AGENT ERROR]", message);
       setError(message);
+      setAgentStep(null);
       setStatus("error");
+    } finally {
+      if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
     }
   }, []);
 
   const reset = useCallback(() => {
     setResult(null);
     setStatus("idle");
+    setAgentStep(null);
     setError(null);
     setLatency(null);
     previousCodeRef.current = null;
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
   }, []);
 
-  return { generate, result, status, error, latency, reset };
+  return { generate, result, status, agentStep, error, latency, reset };
 }
