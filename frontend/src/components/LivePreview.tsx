@@ -1,29 +1,55 @@
-import { SandpackProvider, SandpackPreview } from "@codesandbox/sandpack-react";
+import { useRef } from "react";
+import { SandpackProvider, SandpackPreview, SandpackConsole } from "@codesandbox/sandpack-react";
 
 interface Props {
   code: string;
 }
 
-/**
- * LivePreview renders generated React + Tailwind code in a sandboxed iframe
- * using Sandpack. The code is injected as App.tsx.
- */
 export function LivePreview({ code }: Props) {
-  // Wrap the generated code so it always has a default export
-  const wrappedCode = ensureDefaultExport(code);
+  // Sanitize imports FIRST (remove unknown packages), then ensure default export
+  const wrappedCode = ensureDefaultExport(sanitizeImports(code));
+
+  console.log("[LivePreview] rendering with code:", wrappedCode.substring(0, 150));
+
+  // FIX #2: Use a counter key (not full code string) to avoid memory issues
+  // while still forcing Sandpack to remount when code changes.
+  const keyRef = useRef(0);
+  const prevCodeRef = useRef("");
+  if (prevCodeRef.current !== wrappedCode) {
+    prevCodeRef.current = wrappedCode;
+    keyRef.current += 1;
+  }
 
   return (
-    <div className="h-full">
+    <div style={{ width: "100%", height: "100%", minHeight: 500, display: "flex", flexDirection: "column" }}>
       <SandpackProvider
+        // FIX #3: Use react-ts template (not react) because GPT-4o/Claude
+        // almost always generates TypeScript syntax. Using "react" + .js
+        // causes parse errors on TypeScript annotations.
         template="react-ts"
-        files={{
-          "/App.tsx": {
-            code: wrappedCode,
-            active: true,
+        key={keyRef.current}
+        customSetup={{
+          // FIX #1: Pre-install packages GPT-4o commonly imports.
+          // Without this, Sandpack throws "Module not found" and shows
+          // an error overlay instead of the generated UI.
+          dependencies: {
+            "lucide-react": "^0.400.0",
+            "framer-motion": "^11.0.0",
+            "clsx": "^2.1.0",
           },
-          // Inject Tailwind via CDN in the HTML
-          "/public/index.html": {
-            code: `<!DOCTYPE html>
+        }}
+        files={{
+          // DEBUG: hardcode a bright red component to test if Sandpack renders
+          "/App.tsx": `export default function App() {
+  return (
+    <div style={{padding: 40, background: '#ef4444', color: 'white', fontSize: 24, minHeight: '100vh'}}>
+      <h1>✅ Sandpack is working!</h1>
+      <p>Generated code: ${code?.length} chars</p>
+    </div>
+  );
+}`,
+          // Inject Tailwind CDN + fonts via the public HTML template
+          "/public/index.html": `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -38,45 +64,92 @@ export function LivePreview({ code }: Props) {
   <div id="root"></div>
 </body>
 </html>`,
-            hidden: true,
-          },
+          // FIX #4: Disable TypeScript strict mode so AI-generated code
+          // (missing type annotations, implicit any, etc.) doesn't cause
+          // TS errors that block the preview from rendering.
+          "/tsconfig.json": JSON.stringify({
+            include: ["./**/*"],
+            compilerOptions: {
+              strict: false,
+              esModuleInterop: true,
+              allowSyntheticDefaultImports: true,
+              skipLibCheck: true,
+              lib: ["dom", "dom.iterable", "es2017"],
+              jsx: "react-jsx",
+            },
+          }),
         }}
         options={{
-          externalResources: ["https://cdn.tailwindcss.com"],
+          externalResources: [
+            "https://cdn.tailwindcss.com",
+            "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+          ],
         }}
         theme="light"
       >
-        <div className="h-full [&_.sp-preview-container]:!h-full [&_.sp-preview-iframe]:!h-full">
-          <SandpackPreview
-            showOpenInCodeSandbox={false}
-            showRefreshButton={false}
-            style={{ height: "100%" }}
-          />
-        </div>
+        <SandpackPreview
+          showOpenInCodeSandbox={false}
+          showRefreshButton={true}
+          style={{ flex: 1, minHeight: 400 }}
+        />
+        <SandpackConsole style={{ height: 80 }} />
       </SandpackProvider>
     </div>
   );
 }
 
 /**
+ * FIX #1 (companion): Strip imports of packages NOT in our customSetup.
+ * Safety net for when the AI ignores the "no external imports" rule.
+ *
+ * Kept packages: react, lucide-react, framer-motion, clsx
+ * Stripped: @shadcn/ui, @radix-ui, tailwind-merge, react-icons, etc.
+ */
+function sanitizeImports(code: string): string {
+  const ALLOWED_PACKAGES = new Set([
+    "react",
+    "lucide-react",
+    "framer-motion",
+    "clsx",
+  ]);
+
+  return code
+    .split("\n")
+    .map((line) => {
+      // Match: import X from 'pkg' / import { X } from "pkg" / import type ...
+      const importMatch = line.match(/^import\s+.*?\s+from\s+['"]([^'"]+)['"]/);
+      if (!importMatch) return line;
+      const pkg = importMatch[1];
+      // Always allow relative/absolute imports
+      if (pkg.startsWith(".") || pkg.startsWith("/")) return line;
+      // Allow whitelisted packages
+      if (ALLOWED_PACKAGES.has(pkg)) return line;
+      // Strip unknown package, leave a comment so it's visible in CodePanel
+      return `// [auto-removed import: "${pkg}" — not available in preview]`;
+    })
+    .join("\n");
+}
+
+/**
  * Ensures the generated code has a proper default export.
- * Claude sometimes outputs `function App()` without `export default`.
+ * The AI sometimes outputs function App() without export default.
+ *
+ * FIX #3 (edge case): Check for literal "export default" to avoid matching
+ * the string inside a JSON blob that was accidentally passed as code.
  */
 function ensureDefaultExport(code: string): string {
-  // Already has default export
-  if (code.includes("export default")) return code;
+  // Check for actual export default declaration (not inside a string/comment)
+  // Simple heuristic: if code starts with { it's probably JSON, not JSX
+  const looksLikeJson = code.trimStart().startsWith("{") && !code.includes("return (") && !code.includes("return(");
+  if (!looksLikeJson && code.includes("export default")) return code;
 
-  // Has a named function — add export default at the end
-  const funcMatch = code.match(/function\s+(\w+)\s*\(/);
-  if (funcMatch) {
-    return `${code}\n\nexport default ${funcMatch[1]};`;
-  }
+  // Has a named function declaration
+  const funcMatch = code.match(/^function\s+(\w+)\s*\(/m);
+  if (funcMatch) return `${code}\n\nexport default ${funcMatch[1]};`;
 
-  // Has a const arrow component
-  const constMatch = code.match(/(?:const|let)\s+(\w+)\s*=\s*(?:\(|function)/);
-  if (constMatch) {
-    return `${code}\n\nexport default ${constMatch[1]};`;
-  }
+  // Has a const/let arrow function component
+  const constMatch = code.match(/^(?:const|let)\s+(\w+)\s*=\s*(?:\(|function|\()/m);
+  if (constMatch) return `${code}\n\nexport default ${constMatch[1]};`;
 
   // Fallback: wrap everything in a default export
   return `export default function App() {\n  return (\n${code}\n  );\n}`;

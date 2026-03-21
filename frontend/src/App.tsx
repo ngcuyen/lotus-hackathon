@@ -67,7 +67,7 @@ export default function App() {
       </header>
 
       {/* ─── Main Split View ─── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0 }}>
         {/* Left: Sketch Input */}
         <div className="w-1/2 flex flex-col border-r border-neutral-200">
           <div className="px-4 py-2 border-b border-neutral-100 flex items-center justify-between">
@@ -100,7 +100,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex-1 relative bg-neutral-100/50">
+          <div className="flex-1 relative bg-neutral-100/50" style={{ minHeight: 0, overflow: "auto" }}>
             {/* Processing overlay */}
             <AnimatePresence>
               {status === "processing" && (

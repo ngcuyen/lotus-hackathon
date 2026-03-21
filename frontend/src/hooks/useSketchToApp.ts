@@ -36,8 +36,10 @@ export function useSketchToApp(): UseSketchToAppReturn {
     setStatus("processing");
     setError(null);
     const startTime = performance.now();
+    console.log("[1/4] Starting generation, image size:", imageBase64.length, "chars");
 
     try {
+      console.log("[2/4] Calling API...");
       const response = await generateFromSketch({
         image_base64: imageBase64,
         previous_code: previousCodeRef.current || undefined,
@@ -45,6 +47,10 @@ export function useSketchToApp(): UseSketchToAppReturn {
       });
 
       const aiTime = performance.now() - startTime;
+      console.log("[3/4] API responded in", (aiTime / 1000).toFixed(2) + "s");
+      console.log("[3/4] Description:", response.description);
+      console.log("[3/4] Component length:", response.component?.length, "chars");
+      console.log("[3/4] Component preview:", response.component?.substring(0, 200));
       const renderStart = performance.now();
 
       setResult(response);
@@ -53,15 +59,18 @@ export function useSketchToApp(): UseSketchToAppReturn {
       // Small delay to measure render time
       requestAnimationFrame(() => {
         const renderTime = performance.now() - renderStart;
+        console.log("[4/4] Render time:", (renderTime / 1000).toFixed(2) + "s");
         setLatency({
           ai: aiTime / 1000,
           render: renderTime / 1000,
           total: (aiTime + renderTime) / 1000,
         });
         setStatus("done");
+        console.log("[4/4] Status: done ✅");
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
+      console.error("[ERROR]", message);
       setError(message);
       setStatus("error");
     }

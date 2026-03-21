@@ -13,11 +13,14 @@ RULES:
 3. "component" contains a complete, self-contained React functional component
 4. The component must use ONLY Tailwind CSS utility classes for styling
 5. The component must be named "App" and use `export default function App()`
-6. Do NOT import anything except React hooks (useState, useEffect, etc.)
+6. ONLY allowed imports: `import { useState, useEffect, useRef, useCallback } from "react"` — NO other imports. Do NOT import lucide-react, shadcn, radix, headlessui, or any other library.
 7. Use realistic placeholder data (real names, emails, lorem text)
 8. Match the LAYOUT of the sketch as precisely as possible
 9. Add subtle hover states and transitions for interactive elements
 10. Mobile-first responsive design
+11. ALWAYS generate a COMPLETE, VISUALLY RICH UI — never output just a single shape or empty div
+12. If the sketch is abstract or unclear, interpret it as the closest meaningful UI (e.g. a circle could be a profile avatar, a line could be a divider, random shapes could be a dashboard layout)
+13. The output must always be a full-page app with visible content — headings, text, buttons, cards, etc.
 
 OUTPUT FORMAT (strict JSON, no markdown wrapping):
 {"component": "export default function App() { return (<div>...</div>); }", "description": "Brief description of detected UI"}
