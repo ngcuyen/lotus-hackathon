@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export interface GenerationItem {
   gen_id: string;
@@ -12,7 +12,7 @@ export interface GenerationItem {
 }
 
 export async function fetchGenerations(limit = 50, sessionId?: string): Promise<GenerationItem[]> {
-  let url = `${API_BASE}/generations?limit=${limit}`;
+  let url = `${API_BASE}/api/generations?limit=${limit}`;
   if (sessionId) url += `&session_id=${sessionId}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch generations");
@@ -36,7 +36,7 @@ export async function saveGeneration(data: {
   version?: number;
   parent_gen_id?: string;
 }): Promise<GenerationItem> {
-  const res = await fetch(`${API_BASE}/generations`, {
+  const res = await fetch(`${API_BASE}/api/generations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),

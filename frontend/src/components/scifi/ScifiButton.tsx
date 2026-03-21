@@ -93,21 +93,38 @@ export function ScifiButton({ children, variant = "filled-cyan", className = "",
     <button
       {...props}
       className={`scifi-button ${className}`}
-      style={getStyles()}
+      style={{ ...getStyles(), ...props.style }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-2px)";
         if (variant === "filled-cyan") {
+          e.currentTarget.style.backgroundColor = "#33e0ff";
           e.currentTarget.style.boxShadow = "0 0 24px var(--scifi-cyan)";
         } else if (variant === "filled-orange") {
+          e.currentTarget.style.backgroundColor = "#ff8533";
           e.currentTarget.style.boxShadow = "0 0 24px var(--scifi-orange)";
+        } else if (variant === "outline-cyan") {
+          e.currentTarget.style.backgroundColor = "rgba(0, 212, 255, 0.15)";
+          e.currentTarget.style.boxShadow = "0 0 20px var(--scifi-cyan)60";
+        } else if (variant === "outline-orange") {
+          e.currentTarget.style.backgroundColor = "rgba(255, 106, 0, 0.15)";
+          e.currentTarget.style.boxShadow = "0 0 20px var(--scifi-orange)60";
         } else if (variant === "cta") {
+          e.currentTarget.style.backgroundColor = "#44ff2e";
           e.currentTarget.style.boxShadow = "0 0 28px var(--scifi-green)";
+        } else if (variant === "danger") {
+          e.currentTarget.style.backgroundColor = "#ef4444";
+          e.currentTarget.style.boxShadow = "0 0 24px #ef444480";
+        } else if (variant === "ghost") {
+          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
         }
+        props.onMouseEnter?.(e);
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
         const styles = getStyles();
+        e.currentTarget.style.backgroundColor = styles.backgroundColor || "";
         e.currentTarget.style.boxShadow = styles.boxShadow || "";
+        props.onMouseLeave?.(e);
       }}
     >
       {children}

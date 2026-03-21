@@ -159,15 +159,37 @@ export const PreviewPanel = forwardRef<LivePreviewHandle, PreviewPanelProps>(
               onElementDragged={onElementDragged}
             />
           ) : status !== "processing" ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <Box className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--scifi-cyan)", opacity: 0.2 }} />
-                <p className="text-xs mb-2" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  NO PREVIEW AVAILABLE
+            <div
+              className="h-full flex items-center justify-center"
+              style={{
+                backgroundImage: "url('/background.svg')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <div className="text-center flex flex-col items-center" style={{ animation: "fadeInUp 0.6s ease-out" }}>
+                <video
+                  src="/demo.mov"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  style={{
+                    maxWidth: "90%",
+                    maxHeight: "70%",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(0, 212, 255, 0.2)",
+                    boxShadow: "0 0 30px rgba(0, 212, 255, 0.1)",
+                    display: "none",
+                  }}
+                />
+                <p className="text-sm mt-4 font-semibold" style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}>
+                  Your app will appear here
                 </p>
-                <p className="text-[10px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-                  Capture or upload a sketch to see your app
+                <p className="text-[11px] mt-1" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
+                  Sketch it → Capture it → Watch it come alive
                 </p>
+                <style>{`@keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
               </div>
             </div>
           ) : null}

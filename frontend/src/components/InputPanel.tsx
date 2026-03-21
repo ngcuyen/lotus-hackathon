@@ -1,4 +1,4 @@
-import { Camera, Zap } from "lucide-react";
+import { Camera, Zap, Lock, ShoppingCart, MessageSquare, BarChart3 } from "lucide-react";
 import { CameraCapture } from "./CameraCapture";
 import { DEMO_SKETCHES, type DemoSketch } from "../utils/demoSketches";
 
@@ -48,39 +48,6 @@ export function InputPanel({
         </div>
       </div>
 
-      {/* Purpose selector */}
-      <div
-        className="px-3 py-2 flex flex-wrap gap-1"
-        style={{ borderBottom: "1px solid rgba(0, 212, 255, 0.1)" }}
-      >
-        {purposes.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => onSelectPurpose(selectedPurpose === p.id ? null : p.id)}
-            style={{
-              padding: "3px 8px",
-              fontSize: "0.6rem",
-              fontFamily: "'Courier New', monospace",
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              border: `1px solid ${
-                selectedPurpose === p.id ? "var(--scifi-orange)" : "rgba(0, 212, 255, 0.2)"
-              }`,
-              backgroundColor:
-                selectedPurpose === p.id ? "rgba(255, 106, 0, 0.15)" : "transparent",
-              color:
-                selectedPurpose === p.id ? "var(--scifi-orange)" : "var(--scifi-text-dim)",
-              clipPath:
-                "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
-            }}
-          >
-            {p.name.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
       {/* Demo Examples */}
       <div
         className="px-3 py-2"
@@ -96,58 +63,63 @@ export function InputPanel({
           </span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
-          {DEMO_SKETCHES.map((sketch) => (
-            <button
-              key={sketch.id}
-              onClick={() => onDemoSelect(sketch)}
-              style={{
-                padding: "6px 8px",
-                backgroundColor: "transparent",
-                border: "1px solid rgba(0, 212, 255, 0.2)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                textAlign: "left",
-                clipPath:
-                  "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(0, 212, 255, 0.06)";
-                e.currentTarget.style.borderColor = "var(--scifi-cyan)";
-                e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 212, 255, 0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.2)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span style={{ fontSize: "0.9rem" }}>{sketch.emoji}</span>
-                <span
-                  style={{
-                    fontSize: "0.6rem",
-                    fontWeight: 700,
-                    fontFamily: "'Courier New', monospace",
-                    color: "var(--scifi-cyan)",
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {sketch.name}
-                </span>
-              </div>
-              <div
+          {DEMO_SKETCHES.map((sketch) => {
+            const IconComponent =
+              sketch.id === "login" ? Lock :
+              sketch.id === "shop" ? ShoppingCart :
+              sketch.id === "chat" ? MessageSquare :
+              BarChart3;
+
+            return (
+              <button
+                key={sketch.id}
+                onClick={() => onDemoSelect(sketch)}
                 style={{
-                  fontSize: "0.55rem",
-                  fontFamily: "'Courier New', monospace",
-                  color: "var(--scifi-text-dim)",
-                  lineHeight: 1.3,
+                  padding: "8px 10px",
+                  backgroundColor: "rgba(0, 212, 255, 0.03)",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  textAlign: "left",
+                  borderRadius: "4px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 212, 255, 0.1)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 212, 255, 0.03)";
+                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
-                {sketch.tagline}
-              </div>
-            </button>
-          ))}
+                <div className="flex items-center gap-2 mb-1">
+                  <IconComponent className="w-4 h-4" style={{ color: "#ffffff" }} />
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      fontFamily: "'Courier New', monospace",
+                      color: "#ffffff",
+                      letterSpacing: "0.05em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {sketch.name}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.55rem",
+                    fontFamily: "'Courier New', monospace",
+                    color: "rgba(255, 255, 255, 0.7)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {sketch.tagline}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

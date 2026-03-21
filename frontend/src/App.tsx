@@ -209,6 +209,16 @@ export default function App() {
         <div className="flex items-center gap-3">
           {/* Style selector */}
           <div className="flex items-center gap-1.5">
+            <span
+              className="text-[10px] uppercase tracking-wider mr-1"
+              style={{
+                color: "var(--scifi-text-dim)",
+                fontFamily: "'Courier New', monospace",
+                fontWeight: 600
+              }}
+            >
+              OUTPUT STYLE:
+            </span>
             <ScifiStyleSelector
               options={STYLES}
               selected={selectedStyle}

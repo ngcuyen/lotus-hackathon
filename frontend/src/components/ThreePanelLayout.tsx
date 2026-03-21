@@ -121,6 +121,8 @@ export function ThreePanelLayout({ leftPanel, centerPanel, rightPanel, showRight
             height: "100%",
             overflow: "hidden",
             borderLeft: "1px solid rgba(0, 212, 255, 0.2)",
+            position: "relative",
+            zIndex: 20,
           }}
         >
           {rightPanel}

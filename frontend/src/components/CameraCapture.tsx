@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import Webcam from "react-webcam";
-import { Camera, Upload, Pencil, X, FlipHorizontal, Zap } from "lucide-react";
+import { Camera, Upload, Pencil, X, FlipHorizontal, Zap, ArrowLeft } from "lucide-react";
 import { ScifiButton } from "./scifi/ScifiButton";
 
 interface Props {
@@ -136,18 +136,10 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
     return (
       <div className="h-full flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span
-            className="text-xs uppercase tracking-wider"
-            style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}
-          >
-            DRAW YOUR WIREFRAME
-          </span>
-          <div className="flex gap-2">
-            <ScifiButton variant="ghost" onClick={clearCanvas} style={{ padding: "0.5rem 1rem", fontSize: "0.75rem" }}>
-              CLEAR
-            </ScifiButton>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setMode("idle")}
+              title="Back"
               style={{
                 width: "32px",
                 height: "32px",
@@ -158,11 +150,24 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
+                transition: "all 0.2s ease",
+                clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255, 106, 0, 0.2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
             >
-              <X className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
+            <span
+              className="text-xs uppercase tracking-wider"
+              style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}
+            >
+              DRAW YOUR WIREFRAME
+            </span>
           </div>
+          <ScifiButton variant="ghost" onClick={clearCanvas} style={{ padding: "0.5rem 1rem", fontSize: "0.75rem" }}>
+            CLEAR
+          </ScifiButton>
         </div>
         <div
           className="flex-1 overflow-hidden bg-white"
@@ -197,31 +202,10 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
     return (
       <div className="h-full flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span
-            className="text-xs uppercase tracking-wider"
-            style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}
-          >
-            POINT CAMERA AT YOUR SKETCH
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFacingMode((m) => (m === "user" ? "environment" : "user"))}
-              style={{
-                width: "32px",
-                height: "32px",
-                backgroundColor: "transparent",
-                border: "1px solid var(--scifi-cyan)",
-                color: "var(--scifi-cyan)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-            >
-              <FlipHorizontal className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setMode("idle")}
+              title="Back"
               style={{
                 width: "32px",
                 height: "32px",
@@ -232,11 +216,40 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
+                transition: "all 0.2s ease",
+                clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(255, 106, 0, 0.2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
             >
-              <X className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
+            <span
+              className="text-xs uppercase tracking-wider"
+              style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}
+            >
+              POINT CAMERA AT YOUR SKETCH
+            </span>
           </div>
+          <button
+            onClick={() => setFacingMode((m) => (m === "user" ? "environment" : "user"))}
+            style={{
+              width: "32px",
+              height: "32px",
+              backgroundColor: "transparent",
+              border: "1px solid var(--scifi-cyan)",
+              color: "var(--scifi-cyan)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(0, 212, 255, 0.15)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+          >
+            <FlipHorizontal className="w-4 h-4" />
+          </button>
         </div>
         <div
           className="flex-1 overflow-hidden"
@@ -265,24 +278,47 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
 
   // ─── Render: Idle — choose input mode ───
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-6 p-6">
+    <div className="h-full flex flex-col items-center justify-center gap-5 p-6">
       {/* Header */}
       <div className="text-center">
+        <div
+          className="inline-block px-3 py-1 mb-3 text-[10px] font-bold uppercase tracking-widest"
+          style={{
+            color: "var(--scifi-green)",
+            border: "1px solid var(--scifi-green)",
+            fontFamily: "'Courier New', monospace",
+            clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
+          }}
+        >
+          STEP 1
+        </div>
         <h2
           className="text-base font-bold uppercase tracking-wider mb-1.5"
           style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}
         >
           CAPTURE YOUR SKETCH
         </h2>
-        <p className="text-xs" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
-          Draw on paper, whiteboard, or iPad — then capture it
+        <p className="text-[11px]" style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}>
+          Grab your wireframe — paper, whiteboard, or iPad
         </p>
       </div>
 
       {/* Action buttons */}
       <div className="flex flex-col gap-2.5 w-full max-w-sm">
         <ScifiButton
-          variant="filled-cyan"
+          variant="outline-orange"
+          onClick={() => fileInputRef.current?.click()}
+          style={{ width: "100%", height: "48px", justifyContent: "flex-start", alignItems: "center", paddingLeft: "1.25rem", paddingRight: "1.25rem", gap: "0.625rem" }}
+        >
+          <Upload className="w-5 h-5" style={{ flexShrink: 0 }} />
+          <div className="text-left flex-1">
+            <div className="font-bold text-xs">UPLOAD IMAGE</div>
+            <div className="text-[10px] opacity-70">Fastest way — pick a photo</div>
+          </div>
+        </ScifiButton>
+
+        <ScifiButton
+          variant="outline-orange"
           onClick={() => setMode("camera")}
           style={{ width: "100%", height: "48px", justifyContent: "flex-start", alignItems: "center", paddingLeft: "1.25rem", paddingRight: "1.25rem", gap: "0.625rem" }}
         >
@@ -294,19 +330,7 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
         </ScifiButton>
 
         <ScifiButton
-          variant="outline-cyan"
-          onClick={() => fileInputRef.current?.click()}
-          style={{ width: "100%", height: "48px", justifyContent: "flex-start", alignItems: "center", paddingLeft: "1.25rem", paddingRight: "1.25rem", gap: "0.625rem" }}
-        >
-          <Upload className="w-4 h-4" style={{ flexShrink: 0 }} />
-          <div className="text-left flex-1">
-            <div className="font-bold text-xs">UPLOAD IMAGE</div>
-            <div className="text-[10px] opacity-60">Select from your device</div>
-          </div>
-        </ScifiButton>
-
-        <ScifiButton
-          variant="outline-cyan"
+          variant="outline-orange"
           onClick={() => {
             setMode("draw");
             // Init canvas with white bg after render
