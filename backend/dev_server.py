@@ -216,6 +216,7 @@ def generate():
                 sketch_analysis=sketch_analysis,
                 parent_gen_id=body.get("parent_gen_id"),
                 modification=modification,
+                session_id=body.get("session_id"),
             )
             result["gen_id"] = saved["gen_id"]
             logger.info(f"[DB] Saved as {saved['gen_id']}")
@@ -247,14 +248,19 @@ def generate_stream():
     """Streaming generation — returns chunks as SSE."""
     body = request.json
     image_base64 = body.get("image_base64")
+    style = body.get("style", "modern")
+    purpose = body.get("purpose")
+    previous_code = body.get("previous_code")
+    modification = body.get("modification")
 
     if not image_base64:
         return jsonify({"error": "image_base64 is required"}), 400
 
     def stream():
-        messages = build_messages(image_base64)
+        system_prompt = get_system_prompt(style, purpose)
+        messages = build_messages(image_base64, previous_code, modification, style, purpose)
         if BACKEND == "openai":
-            oai_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            oai_messages = [{"role": "system", "content": system_prompt}]
             for msg in messages:
                 content = msg["content"]
                 if isinstance(content, str):
@@ -277,7 +283,7 @@ def generate_stream():
                     yield chunk.choices[0].delta.content
         elif BACKEND == "anthropic":
             with client.messages.stream(
-                model=MODEL_ID, system=SYSTEM_PROMPT, messages=messages,
+                model=MODEL_ID, system=system_prompt, messages=messages,
                 max_tokens=MAX_TOKENS, temperature=0.3,
             ) as s:
                 for text in s.text_stream:
@@ -289,7 +295,7 @@ def generate_stream():
                 accept="application/json",
                 body=json.dumps({
                     "anthropic_version": "bedrock-2023-05-31",
-                    "system": SYSTEM_PROMPT,
+                    "system": system_prompt,
                     "messages": messages,
                     "max_tokens": MAX_TOKENS,
                     "temperature": 0.3,
@@ -309,8 +315,30 @@ def generate_stream():
 def api_list_generations():
     """List recent generations."""
     limit = request.args.get("limit", 50, type=int)
-    items = list_generations(limit)
+    session_id = request.args.get("session_id")
+    items = list_generations(limit, session_id=session_id)
     return jsonify(items)
+
+
+@app.route("/api/generations", methods=["POST"])
+def api_save_generation():
+    """Save a generation result from frontend (after streaming)."""
+    body = request.json
+    try:
+        saved = save_generation(
+            style=body.get("style"),
+            purpose=body.get("purpose"),
+            component=body.get("component", ""),
+            description=body.get("description", ""),
+            latency_seconds=body.get("latency_seconds", 0),
+            session_id=body.get("session_id"),
+            modification=body.get("modification"),
+            parent_gen_id=body.get("parent_gen_id"),
+            version=body.get("version"),
+        )
+        return jsonify(saved)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/generations/<gen_id>", methods=["GET"])

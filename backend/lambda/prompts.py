@@ -84,24 +84,27 @@ QUALITY STANDARDS:
 - Inputs: controlled with useState, focus states
 - Gradient backgrounds or accent colors to make UI pop
 - Animations with transition-all duration-200
+- POPULATE WITH RICH DATA: use 5-10 realistic items (names, messages, prices, dates) — never leave sections empty or with only 1-2 items
+- Every list/grid/table must have enough items to feel like a real app
+- Use inline SVG icons generously — every nav item, button, and card should have an icon
 
 OUTPUT FORMAT (strict JSON, no markdown wrapping):
 """ + '{"component": "import { useState } from \\"react\\";\\nexport default function App() { ... }", "description": "Brief description"}'
 
 
 PURPOSE_INTENTS = {
-    "landing": "a marketing landing page with hero section, features grid, CTA buttons, testimonials, and footer",
-    "portfolio": "a personal portfolio/CV with hero intro, project cards, skills section, and contact form",
-    "webapp": "a web application with navigation, sidebar or tabs, data display, and interactive controls",
-    "poster": "a visually striking poster/banner with bold typography, imagery placeholders, and decorative elements",
-    "dashboard": "an analytics dashboard with metric cards, charts (use inline SVG), tables, and sidebar navigation",
-    "ecommerce": "an e-commerce page with product grid, filters, cart, pricing, and buy buttons",
-    "form": "a multi-field form with validation states, labels, grouped sections, and submit button",
-    "blog": "a blog/article layout with featured image placeholder, rich text content, author info, and related posts",
-    "chat": "a real-time chat interface with message bubbles, input bar, contact list, and online indicators",
-    "game": "a game UI with score display, interactive game board or controls, and start/restart buttons",
-    "mobile": "a mobile app screen with bottom tab bar, cards, and touch-friendly large tap targets",
-    "admin": "an admin panel with data table, CRUD actions, filters, pagination, and status badges",
+    "landing": "a marketing landing page with: hero section (big headline, subtitle, CTA button, hero image placeholder), features grid (3-4 cards with icons), social proof/testimonials (avatar + quote + name), pricing section or CTA banner, footer with links. Use gradient backgrounds, large typography, and plenty of whitespace.",
+    "portfolio": "a personal portfolio with: hero intro (name, title, short bio, avatar placeholder), project showcase (3+ cards with image placeholder, title, description, tech tags, link), skills section (progress bars or tag cloud), contact form (name, email, message). Make it feel personal and creative.",
+    "webapp": "a web application with: top navigation bar (logo, nav links, user avatar), sidebar or tab navigation, main content area with data display (cards/lists), interactive controls (buttons, toggles, dropdowns). Include at least 8-10 realistic data items.",
+    "poster": "a visually striking poster/banner with: bold oversized typography, decorative geometric shapes, imagery placeholders, color blocks, layered elements. Focus on visual impact over interactivity.",
+    "dashboard": "an analytics dashboard with: sidebar navigation (logo, 5+ nav items, active state), top bar (search, notifications, avatar), 4 metric cards (icon, value, label, trend arrow), line/bar chart placeholder (use inline SVG with realistic data points), data table (5+ rows, sortable headers, status badges, pagination). Make it data-rich.",
+    "ecommerce": "an e-commerce page with: search/filter bar, product grid (4-6 products with image placeholder, name, price, rating stars, reviews count, add-to-cart), shopping cart sidebar or badge, category filters, sort dropdown. Include realistic product names and prices.",
+    "form": "a multi-step or sectioned form with: grouped field sections (personal info, address, preferences), various input types (text, email, select, checkbox, radio, textarea), inline validation states (error/success), progress indicator, submit button with loading state. At least 8 fields.",
+    "blog": "a blog/article layout with: featured image placeholder (16:9), article title (large), author info (avatar, name, date, read time), rich body text (paragraphs, a subheading, a blockquote), tags, share buttons, related posts grid (3 cards). Use good typography hierarchy.",
+    "chat": "a full-featured chat application with: LEFT sidebar (search bar, conversation list with 5+ contacts each showing avatar circle with initials, name, last message preview truncated, timestamp, unread badge count), RIGHT chat area (header with contact name/avatar/online status, scrollable message area with 8+ messages alternating sent/received with timestamps and read receipts, typing indicator dots animation, message input bar with attachment button, text input, send button). Include realistic conversation data. Messages should have proper bubble styling with tails.",
+    "game": "a game UI with: score/lives display, interactive game board or play area (grid, cards, or canvas), control buttons (start, pause, restart), level indicator, high score, timer. Make the game actually playable with useState logic.",
+    "mobile": "a mobile app screen (max-w-sm mx-auto with device frame): status bar, main content with cards/lists, bottom tab bar (4-5 tabs with icons and labels, active state). Use large touch targets (min 44px), rounded corners, and mobile-appropriate spacing.",
+    "admin": "an admin panel with: sidebar (logo, nav sections), data table (6+ rows with checkbox select, avatar, name, email, role, status badge, actions dropdown), top bar with search and filters, bulk action buttons, pagination (showing 'Page 1 of 5, 48 results'). Include CRUD action buttons.",
 }
 
 

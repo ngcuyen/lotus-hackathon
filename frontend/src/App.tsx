@@ -12,6 +12,7 @@ import { ThreePanelLayout } from "./components/ThreePanelLayout";
 import { InputPanel } from "./components/InputPanel";
 import { PreviewPanel } from "./components/PreviewPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { saveGeneration } from "./api/generations";
 import { useSketchToApp } from "./hooks/useSketchToApp";
 import { ScifiPanel, ScifiButton, ScifiNav, ScifiBadge, ScifiMetricTile, ScifiProgressBar, ScifiStyleSelector, ScifiCustomStylePopover } from "./components/scifi";
 
@@ -62,7 +63,7 @@ export default function App() {
   ];
 
   // Initialize hook first
-  const { generate, loadMockData, loadResult, result, status, error, latency, reset } = useSketchToApp();
+  const { generate, loadMockData, loadResult, result, streamingCode, status, error, latency, reset, sessionId, currentGenId, bumpVersion } = useSketchToApp();
 
   const handleSaveCustomStyle = useCallback((styleData: any) => {
     const newStyle = {
@@ -83,32 +84,47 @@ export default function App() {
     }
   }, [editMode]);
 
+  const [hasEdits, setHasEdits] = useState(false);
+
   const handleModify = useCallback(
     (modification: string) => {
-      if (sketchImage && result) {
-        generate(sketchImage, modification, selectedStyle, selectedPurpose ?? undefined);
-        setSelectedElement(null);
-      }
+      setSelectedElement(null);
+      setHasEdits(true);
     },
-    [sketchImage, result, selectedStyle, selectedPurpose, generate]
+    []
   );
 
   const handleElementDragged = useCallback(
-    (element: any, deltaX: number, deltaY: number) => {
-      if (sketchImage && result) {
-        const direction = [];
-        if (deltaX > 0) direction.push(`${deltaX}px to the right`);
-        else if (deltaX < 0) direction.push(`${Math.abs(deltaX)}px to the left`);
-        if (deltaY > 0) direction.push(`${deltaY}px down`);
-        else if (deltaY < 0) direction.push(`${Math.abs(deltaY)}px up`);
-
-        const modification = `Move the ${element.tagName.toLowerCase()} ${direction.join(' and ')}`;
-        generate(sketchImage, modification, selectedStyle, selectedPurpose ?? undefined);
-        setSelectedElement(null);
-      }
+    (_element: any, _deltaX: number, _deltaY: number) => {
+      setHasEdits(true);
     },
-    [sketchImage, result, selectedStyle, selectedPurpose, generate]
+    []
   );
+
+  const handleApplyEdits = useCallback(async (snapshotHtml?: string) => {
+    if (!result) { console.log("[SAVE] No result"); return; }
+    console.log("[SAVE] Saving edit...");
+    try {
+      const newVersion = bumpVersion();
+      // Wrap snapshot HTML as a static React component
+      const editedComponent = snapshotHtml
+        ? `export default function App() {\n  return <div dangerouslySetInnerHTML={{__html: \`${snapshotHtml.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`}} />;\n}`
+        : result.component;
+      await saveGeneration({
+        component: editedComponent,
+        description: result.description + ` (v${newVersion})`,
+        style: selectedStyle,
+        purpose: selectedPurpose ?? undefined,
+        session_id: sessionId,
+        parent_gen_id: currentGenId ?? undefined,
+        version: newVersion,
+      });
+      console.log("[SAVE] Success");
+      setHasEdits(false);
+    } catch (e) {
+      console.error("[SAVE] Failed:", e);
+    }
+  }, [result, selectedStyle, selectedPurpose, sessionId, currentGenId, bumpVersion]);
 
   const handleCapture = useCallback(
     (imageBase64: string) => {
@@ -409,12 +425,15 @@ export default function App() {
             <PreviewPanel
               result={result}
               status={status}
+              streamingCode={streamingCode}
               editMode={editMode}
               selectedElement={selectedElement}
               onElementSelected={handleElementSelected}
               onElementDragged={handleElementDragged}
               onModify={handleModify}
               onCloseEditor={() => setSelectedElement(null)}
+              hasEdits={hasEdits}
+              onApplyEdits={handleApplyEdits}
             />
           }
           rightPanel={
@@ -426,7 +445,7 @@ export default function App() {
                 }}
               />
             ) : showHistory ? (
-              <HistoryPanel onLoad={handleLoadFromHistory} />
+              <HistoryPanel onLoad={handleLoadFromHistory} sessionId={sessionId} />
             ) : null
           }
           showRightPanel={!!selectedElement || showHistory}
@@ -478,13 +497,13 @@ export default function App() {
             className="text-[10px] font-semibold tracking-wider px-2 py-0.5"
             style={{
               color:
-                status === "processing" ? "var(--scifi-orange)"
+                status === "processing" || status === "streaming" ? "var(--scifi-orange)"
                   : status === "done" ? "var(--scifi-green)"
                   : status === "error" ? "#dc2626"
                   : "var(--scifi-cyan)",
               fontFamily: "'Courier New', monospace",
               border: `1px solid ${
-                status === "processing" ? "var(--scifi-orange)"
+                status === "processing" || status === "streaming" ? "var(--scifi-orange)"
                   : status === "done" ? "var(--scifi-green)"
                   : status === "error" ? "#dc2626"
                   : "var(--scifi-cyan)"
@@ -493,7 +512,8 @@ export default function App() {
             }}
           >
             {status === "idle" && "READY"}
-            {status === "processing" && "GENERATING"}
+            {status === "processing" && "ANALYZING"}
+            {status === "streaming" && "STREAMING"}
             {status === "done" && "COMPLETE"}
             {status === "error" && "ERROR"}
           </span>

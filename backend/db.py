@@ -36,6 +36,8 @@ def save_generation(
     sketch_analysis=None,
     parent_gen_id=None,
     modification=None,
+    session_id=None,
+    version=None,
 ):
     """Save a generation result. Returns the saved item."""
     gen_id = str(uuid.uuid4())
@@ -58,6 +60,10 @@ def save_generation(
         item["parent_gen_id"] = parent_gen_id
     if modification:
         item["modification"] = modification
+    if session_id:
+        item["session_id"] = session_id
+    if version:
+        item["version"] = version
 
     try:
         _get_table().put_item(Item=item)
@@ -78,18 +84,20 @@ def get_generation(gen_id):
         return None
 
 
-def list_generations(limit=50):
-    """List recent generations (scan, fine for <1000 items)."""
+def list_generations(limit=50, session_id=None):
+    """List recent generations, optionally filtered by session_id."""
     try:
-        resp = _get_table().scan(
-            Limit=limit,
-            ProjectionExpression="gen_id, created_at, #s, purpose, description, latency_seconds, modification",
-            ExpressionAttributeNames={"#s": "style"},
-        )
+        scan_kwargs = {
+            "ProjectionExpression": "gen_id, created_at, #s, purpose, description, latency_seconds, modification, session_id, version",
+            "ExpressionAttributeNames": {"#s": "style"},
+        }
+        if session_id:
+            scan_kwargs["FilterExpression"] = "session_id = :sid"
+            scan_kwargs["ExpressionAttributeValues"] = {":sid": session_id}
+        resp = _get_table().scan(**scan_kwargs)
         items = resp.get("Items", [])
-        # Sort by created_at descending
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-        return items
+        return items[:limit]
     except Exception as e:
         logger.error(f"[DB] Failed to list: {e}")
         return []

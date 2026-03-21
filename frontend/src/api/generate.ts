@@ -9,6 +9,7 @@ export interface GenerateRequest {
   modification?: string;
   style?: string;
   purpose?: string;
+  session_id?: string;
 }
 
 export interface GenerateResponse {

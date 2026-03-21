@@ -4,9 +4,10 @@ import { fetchGenerations, fetchGeneration, deleteGeneration, type GenerationIte
 
 interface HistoryPanelProps {
   onLoad: (component: string, description: string) => void;
+  sessionId?: string;
 }
 
-export function HistoryPanel({ onLoad }: HistoryPanelProps) {
+export function HistoryPanel({ onLoad, sessionId }: HistoryPanelProps) {
   const [items, setItems] = useState<GenerationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +23,14 @@ export function HistoryPanel({ onLoad }: HistoryPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sessionId]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  // Auto-refresh every 5s
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 5000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   const handleLoad = async (genId: string) => {
     try {
