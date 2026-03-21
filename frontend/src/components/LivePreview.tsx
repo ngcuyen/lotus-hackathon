@@ -23,7 +23,9 @@ const IFRAME_SHELL = `<!DOCTYPE html>
   <script src="https://cdn.tailwindcss.com"><\/script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
+  <script src="https://unpkg.com/prop-types@15/prop-types.min.js"><\/script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"><\/script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     body { font-family: 'Inter', system-ui, sans-serif; margin: 0; }
@@ -41,19 +43,34 @@ const IFRAME_SHELL = `<!DOCTYPE html>
       const errEl = document.getElementById('error');
       errEl.style.display = 'none';
       try {
-        const compiled = Babel.transform(code, { presets: ['react'] }).code;
-        const wrapped = compiled + '\\nreturn typeof App !== "undefined" ? App : null;';
-        const fn = new Function('React', 'useState', 'useEffect', 'useRef', 'useCallback', 'useMemo', wrapped);
-        const Component = fn(React, useState, useEffect, useRef, useCallback, useMemo);
+        // Strip import lines — libraries are loaded via CDN globals
+        var lines = code.split('\\n');
+        var stripped = lines.filter(function(l) { return !l.trim().match(/^import\\s/); }).join('\\n');
+        const compiled = Babel.transform(stripped, { presets: ['react'] }).code;
+        const wrapped = compiled + '\\nreturn typeof App !== "undefined" ? App : (typeof CRMDashboard !== "undefined" ? CRMDashboard : null);';
+        // Recharts components from global Recharts UMD
+        const RC = window.Recharts || {};
+        const fn = new Function(
+          'React', 'useState', 'useEffect', 'useRef', 'useCallback', 'useMemo',
+          'LineChart', 'Line', 'BarChart', 'Bar', 'PieChart', 'Pie', 'Cell',
+          'AreaChart', 'Area', 'XAxis', 'YAxis', 'CartesianGrid', 'Tooltip',
+          'ResponsiveContainer', 'Legend', 'RadialBarChart', 'RadialBar',
+          wrapped
+        );
+        const Component = fn(
+          React, useState, useEffect, useRef, useCallback, useMemo,
+          RC.LineChart, RC.Line, RC.BarChart, RC.Bar, RC.PieChart, RC.Pie, RC.Cell,
+          RC.AreaChart, RC.Area, RC.XAxis, RC.YAxis, RC.CartesianGrid, RC.Tooltip,
+          RC.ResponsiveContainer, RC.Legend, RC.RadialBarChart, RC.RadialBar
+        );
         if (Component) {
           if (!_root) _root = ReactDOM.createRoot(document.getElementById('root'));
           _root.render(React.createElement(Component));
         }
       } catch (e) {
-        if (e.message && !e.message.includes('Unexpected')) {
-          errEl.style.display = 'block';
-          errEl.textContent = e.message;
-        }
+        console.error('[IFRAME RENDER]', e.message);
+        errEl.style.display = 'block';
+        errEl.textContent = e.message;
       }
     }
 

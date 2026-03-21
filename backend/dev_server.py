@@ -33,6 +33,7 @@ from prompts import (
     SYSTEM_PROMPT, build_messages, get_system_prompt,
     STYLE_PRESETS, PURPOSE_INTENTS, BASE_PROMPT,
     ANALYZE_SKETCH_SYSTEM_PROMPT, build_analysis_messages,
+    DESIGNER_SYSTEM_PROMPT, build_design_messages,
 )
 
 from db import save_generation, get_generation, list_generations, delete_generation
@@ -43,7 +44,7 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MAX_TOKENS = 4096
+MAX_TOKENS = 16384
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
@@ -51,7 +52,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if OPENAI_API_KEY:
     from openai import OpenAI
     client = OpenAI(api_key=OPENAI_API_KEY)
-    MODEL_ID = os.environ.get("MODEL_ID", "gpt-4o")
+    MODEL_ID = "gpt-5.4"
     BACKEND = "openai"
     logger.info(f"Using OpenAI API (model: {MODEL_ID})")
 elif ANTHROPIC_API_KEY:
@@ -86,7 +87,7 @@ def _call_openai(messages, system_prompt=SYSTEM_PROMPT):
                     parts.append({"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}})
             oai_messages.append({"role": msg["role"], "content": parts})
     response = client.chat.completions.create(
-        model=MODEL_ID, messages=oai_messages, max_tokens=MAX_TOKENS, temperature=0.3,
+        model=MODEL_ID, messages=oai_messages, max_completion_tokens=MAX_TOKENS, temperature=0.3,
     )
     return response.choices[0].message.content
 
@@ -159,6 +160,20 @@ def _analyze_sketch(image_base64):
         return analysis
     except Exception as e:
         logger.warning(f"[ANALYZE] Step 1 failed (continuing without analysis): {e}")
+        return None
+
+
+def _design_ui(sketch_analysis, style="modern", purpose=None):
+    """Step 2: Generate design spec from analysis. Returns design dict or None."""
+    try:
+        messages = build_design_messages(sketch_analysis, style, purpose)
+        raw = _call_ai_with_prompt(messages, DESIGNER_SYSTEM_PROMPT)
+        spec = _parse_analysis(raw)  # Same JSON parse logic
+        if spec:
+            logger.info(f"[DESIGN] palette={spec.get('color_palette', {}).get('primary', '?')}, effects={len(spec.get('special_effects', []))}")
+        return spec
+    except Exception as e:
+        logger.warning(f"[DESIGN] Step 2 failed (continuing without design): {e}")
         return None
 
 
@@ -253,7 +268,7 @@ def get_purposes():
 
 @app.route("/api/generate-stream", methods=["POST"])
 def generate_stream():
-    """Streaming generation — returns chunks as SSE."""
+    """3-step streaming generation: analyze → design → generate (SSE)."""
     body = request.json
     image_base64 = body.get("image_base64")
     style = body.get("style", "modern")
@@ -265,8 +280,31 @@ def generate_stream():
         return jsonify({"error": "image_base64 is required"}), 400
 
     def stream():
+        sketch_analysis = None
+        design_spec = None
+
+        # ── Step 1: Analyze sketch (skip for modifications) ──
+        if not modification:
+            yield "data: {\"status\": \"analyzing\"}\n\n"
+            t1 = time.time()
+            sketch_analysis = _analyze_sketch(image_base64)
+            logger.info(f"[STREAM] Step 1 done in {time.time() - t1:.1f}s")
+
+            # ── Step 2: Design UI ──
+            if sketch_analysis:
+                yield "data: {\"status\": \"designing\"}\n\n"
+                t2 = time.time()
+                design_spec = _design_ui(sketch_analysis, style, purpose)
+                logger.info(f"[STREAM] Step 2 done in {time.time() - t2:.1f}s")
+
+        # ── Step 3: Generate code (streaming) ──
+        yield "data: {\"status\": \"generating\"}\n\n"
         system_prompt = get_system_prompt(style, purpose)
-        messages = build_messages(image_base64, previous_code, modification, style, purpose)
+        messages = build_messages(
+            image_base64, previous_code, modification,
+            style, purpose, sketch_analysis, design_spec
+        )
+
         if BACKEND == "openai":
             oai_messages = [{"role": "system", "content": system_prompt}]
             for msg in messages:
@@ -284,7 +322,7 @@ def generate_stream():
                             parts.append({"type": "image_url", "image_url": {"url": f"data:{media};base64,{b64}"}})
                     oai_messages.append({"role": msg["role"], "content": parts})
             response = client.chat.completions.create(
-                model=MODEL_ID, messages=oai_messages, max_tokens=MAX_TOKENS, temperature=0.3, stream=True,
+                model=MODEL_ID, messages=oai_messages, max_completion_tokens=MAX_TOKENS, temperature=0.3, stream=True,
             )
             for chunk in response:
                 if chunk.choices[0].delta.content:
@@ -316,7 +354,7 @@ def generate_stream():
                     if text:
                         yield text
 
-    return Response(stream(), mimetype="text/plain")
+    return Response(stream(), mimetype="text/event-stream")
 
 
 @app.route("/api/generations", methods=["GET"])

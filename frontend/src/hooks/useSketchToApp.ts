@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { generateFromSketch, generateFromSketchStream, type GenerateResponse } from "../api/generate";
 import { saveGeneration } from "../api/generations";
 
-type Status = "idle" | "processing" | "streaming" | "done" | "error";
+type Status = "idle" | "processing" | "analyzing" | "designing" | "streaming" | "done" | "error";
 
 interface Latency {
   ai: number;
@@ -70,7 +70,17 @@ function extractPartialComponent(raw: string): string | null {
 function autoCloseCode(code: string): string | null {
   if (!code.includes("return")) return null;
 
-  let result = code;
+  // Strip import lines — they're handled by iframe CDN globals
+  let result = code.split('\n').filter(l => !l.trim().startsWith('import ')).join('\n');
+
+  // Recharts components are too complex to auto-close mid-stream.
+  // If we're inside an unclosed recharts block, skip rendering this frame.
+  const CHART_TAGS = ['ResponsiveContainer', 'LineChart', 'BarChart', 'PieChart', 'AreaChart', 'RadialBarChart'];
+  for (const tag of CHART_TAGS) {
+    const opens = (result.match(new RegExp(`<${tag}[\\s>]`, 'g')) || []).length;
+    const closes = (result.match(new RegExp(`</${tag}>`, 'g')) || []).length;
+    if (opens > closes) return null; // mid-chart, skip this frame
+  }
 
   let braces = 0, parens = 0;
   let inString = false;
@@ -154,6 +164,16 @@ export function useSketchToApp(): UseSketchToAppReturn {
       let firstToken = true;
 
       const response = await generateFromSketchStream(request, (token) => {
+        // Check for SSE status events from pipeline
+        if (token.startsWith("data: ")) {
+          try {
+            const evt = JSON.parse(token.replace("data: ", "").trim());
+            if (evt.status === "analyzing") { setStatus("analyzing"); return; }
+            if (evt.status === "designing") { setStatus("designing"); return; }
+            if (evt.status === "generating") { setStatus("processing"); return; }
+          } catch {}
+        }
+
         fullRaw += token;
         const partial = extractPartialComponent(fullRaw);
         if (partial) {

@@ -2,6 +2,8 @@
 Prompt templates for Sketch → Living App.
 """
 
+import json
+
 # ─── Style presets ───
 STYLE_PRESETS = {
     "modern": {
@@ -55,24 +57,37 @@ STYLE_PRESETS = {
     },
 }
 
-BASE_PROMPT = """You are an EXPERT UI designer and React developer. You convert hand-drawn wireframe sketches into BEAUTIFUL, PRODUCTION-QUALITY React applications with Tailwind CSS.
+BASE_PROMPT = """You are an ELITE UI engineer who creates PIXEL-PERFECT, PRODUCTION-QUALITY React applications from wireframe sketches. Your output should look like it was built by a $50,000 design agency.
 
-Your goal is to create UIs that look like they were designed by a top-tier design agency.
+Your goal: recreate the sketch as faithfully as possible — matching layout, proportions, colors, typography, and every visual detail.
 
 RULES:
 1. Output ONLY a valid JSON object. No markdown, no backticks, no explanation.
 2. The JSON must have exactly two fields: "component" and "description"
 3. "component" contains a complete, self-contained React functional component
 4. The component MUST use `export default function App()`
-5. ONLY allowed imports: React hooks from "react" — NO other imports
-6. Use ONLY Tailwind CSS utility classes for ALL styling
-7. Use realistic placeholder data — real names, emails, product names, prices
-8. Match the LAYOUT of the sketch PRECISELY — respect element positions and hierarchy
-9. ALWAYS generate a COMPLETE, VISUALLY RICH, INTERACTIVE UI
-10. If the sketch is abstract or unclear, interpret it as the closest meaningful UI
-11. All interactive elements MUST work: forms with useState, toggles, tabs, counters
-12. Add micro-interactions: hover effects, transitions, active states, focus rings
-13. Use inline SVG for icons — do NOT import icon libraries
+5. Allowed imports: React hooks from "react", AND recharts (LineChart, BarChart, PieChart, AreaChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Line, Bar, Pie, Cell, Area, Legend)
+6. Use Tailwind CSS utility classes AND inline styles where needed for precise control
+7. Use realistic placeholder data — real names, emails, product names, prices, chart data with 5-7 data points
+8. Match the LAYOUT of the sketch PRECISELY — respect element positions, proportions, grid structure, and hierarchy
+9. ALWAYS generate a COMPLETE, VISUALLY RICH, INTERACTIVE UI — no shortcuts, no placeholders
+10. All interactive elements MUST work: forms with useState, toggles, tabs, counters, active nav states
+11. Add micro-interactions: hover effects, transitions, active states, focus rings, transform on hover
+12. Use inline SVG for icons — do NOT import icon libraries
+
+VISUAL QUALITY REQUIREMENTS:
+- Use CSS gradients for backgrounds: linear-gradient, radial-gradient
+- Add visual depth: multiple shadow layers (shadow-lg + shadow-color), border highlights, backdrop-blur
+- Charts: use recharts library for ALL charts/graphs — AreaChart, LineChart, BarChart, PieChart with proper gradients and colors
+- For donut charts: use PieChart with innerRadius/outerRadius, center text overlay with absolute positioning
+- Color-code data: each data series gets a distinct, vibrant color
+- Typography hierarchy: 3+ font sizes, font-weight variation (400/500/600/700/800)
+- Spacing rhythm: consistent padding/margin scale
+- Dark themes: use subtle borders (rgba white), glass effects (bg-white/5 backdrop-blur), gradient borders
+- Light themes: layered shadows, subtle background tints, crisp borders
+- Decorative elements: gradient orbs, subtle patterns, colored dividers, badge indicators
+- Every card/section needs: proper padding, border-radius, background, subtle border or shadow
+- Sidebar navigation: active state with highlight bar/background, section headers, proper spacing
 
 {style_guidelines}
 
@@ -106,6 +121,75 @@ PURPOSE_INTENTS = {
     "mobile": "a mobile app screen (max-w-sm mx-auto with device frame): status bar, main content with cards/lists, bottom tab bar (4-5 tabs with icons and labels, active state). Use large touch targets (min 44px), rounded corners, and mobile-appropriate spacing.",
     "admin": "an admin panel with: sidebar (logo, nav sections), data table (6+ rows with checkbox select, avatar, name, email, role, status badge, actions dropdown), top bar with search and filters, bulk action buttons, pagination (showing 'Page 1 of 5, 48 results'). Include CRUD action buttons.",
 }
+
+
+# ─── Step 2: UI Design Spec ───────────────────────────────────────────────────
+
+DESIGNER_SYSTEM_PROMPT = """You are a WORLD-CLASS UI designer. Given a sketch analysis and style requirements, you create a detailed design specification that will make the final UI look STUNNING.
+
+You receive:
+1. A sketch analysis (layout, components, sections)
+2. A style preset
+3. An optional purpose
+
+You output ONLY a valid JSON object with this structure:
+{
+  "color_palette": {
+    "primary": "tailwind color (e.g. blue-600)",
+    "secondary": "tailwind color",
+    "accent": "tailwind color",
+    "background": "full tailwind class (e.g. bg-gradient-to-br from-slate-900 to-slate-800)",
+    "surface": "card/container bg class",
+    "text_primary": "text color class",
+    "text_secondary": "text color class"
+  },
+  "typography": {
+    "heading": "tailwind classes for h1",
+    "subheading": "tailwind classes for h2/h3",
+    "body": "tailwind classes for body text",
+    "caption": "tailwind classes for small text"
+  },
+  "components": [
+    {
+      "name": "component name from analysis",
+      "tailwind": "specific tailwind classes to apply",
+      "hover": "hover effect classes",
+      "animation": "transition/animation classes"
+    }
+  ],
+  "layout_classes": "top-level container tailwind classes",
+  "special_effects": ["list of CSS effects: gradients, shadows, backdrop-blur, etc."],
+  "micro_interactions": ["list of hover/focus/active state descriptions"],
+  "decorative_elements": ["floating shapes, gradient orbs, patterns, dividers"]
+}
+
+DESIGN PRINCIPLES:
+- Create VISUAL DEPTH: layered shadows, subtle gradients, border highlights
+- Use CONTRAST: large vs small, bold vs light, colorful vs neutral
+- Add DELIGHT: smooth transitions, hover transforms, focus rings, subtle animations
+- Think PREMIUM: the UI should look like a $10,000 design agency built it
+- Be SPECIFIC with Tailwind classes — don't be vague
+- Every interactive element needs hover + active + focus states
+- Add decorative elements: gradient orbs, subtle patterns, dividers with gradients
+- Use shadow-xl/2xl for depth, not just shadow-sm
+- For charts/graphs: specify recharts component types (AreaChart, LineChart, BarChart, PieChart) with gradient fills and proper colors
+- For donut charts: PieChart with innerRadius, center label overlay
+
+Output ONLY valid JSON — no markdown, no backticks, no explanation."""
+
+
+def build_design_messages(sketch_analysis, style="modern", purpose=None):
+    """Build messages for UI design spec generation (Step 2)."""
+    preset = STYLE_PRESETS.get(style, STYLE_PRESETS["modern"])
+    content = f"""SKETCH ANALYSIS:
+{json.dumps(sketch_analysis, indent=2)}
+
+STYLE PRESET: {preset['name']}
+{preset['guidelines']}"""
+    if purpose and purpose in PURPOSE_INTENTS:
+        content += f"\n\nPURPOSE: {PURPOSE_INTENTS[purpose]}"
+    content += "\n\nCreate a detailed design specification that will make this UI look absolutely stunning."
+    return [{"role": "user", "content": content}]
 
 
 def get_system_prompt(style="modern", purpose=None):
@@ -223,6 +307,7 @@ def build_messages(
     style="modern",
     purpose=None,
     sketch_analysis=None,
+    design_spec=None,
 ):
     """Build messages for code generation (Step 2).
 
@@ -262,6 +347,26 @@ def build_messages(
             f"\nBuild EXACTLY this structure — don't add sections not present in the sketch."
         )
         user_content.append({"type": "text", "text": analysis_text})
+
+    # Inject design spec from Step 2
+    if design_spec:
+        spec_text = (
+            f"DESIGN SPECIFICATION (follow these EXACT styles):\n"
+            f"- Colors: primary={design_spec.get('color_palette', {}).get('primary', '')}, "
+            f"bg={design_spec.get('color_palette', {}).get('background', '')}, "
+            f"surface={design_spec.get('color_palette', {}).get('surface', '')}\n"
+            f"- Layout: {design_spec.get('layout_classes', '')}\n"
+            f"- Effects: {', '.join(design_spec.get('special_effects', []))}\n"
+            f"- Micro-interactions: {', '.join(design_spec.get('micro_interactions', []))}\n"
+            f"- Decorative: {', '.join(design_spec.get('decorative_elements', []))}\n"
+        )
+        components = design_spec.get("components", [])
+        if components:
+            spec_text += "- Component styles:\n"
+            for c in components:
+                spec_text += f"  * {c.get('name','')}: {c.get('tailwind','')} hover:{c.get('hover','')} anim:{c.get('animation','')}\n"
+        spec_text += "\nApply these design tokens EXACTLY. Make the UI look PREMIUM and POLISHED."
+        user_content.append({"type": "text", "text": spec_text})
 
     # Purpose hint
     if purpose and purpose in PURPOSE_INTENTS:

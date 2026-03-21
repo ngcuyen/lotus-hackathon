@@ -6,7 +6,7 @@ import { ProcessingOverlay } from "./ProcessingOverlay";
 
 interface PreviewPanelProps {
   result: any;
-  status: "idle" | "processing" | "streaming" | "done" | "error";
+  status: "idle" | "processing" | "analyzing" | "designing" | "streaming" | "done" | "error";
   streamingCode?: string;
   editMode: boolean;
   onElementSelected: (element: any) => void;
@@ -147,7 +147,7 @@ export const PreviewPanel = forwardRef<LivePreviewHandle, PreviewPanelProps>(
         {/* Content */}
         <div className="flex-1 relative overflow-hidden">
           <AnimatePresence>
-            {status === "processing" && <ProcessingOverlay />}
+            {(status === "processing" || status === "analyzing" || status === "designing") && <ProcessingOverlay status={status} />}
           </AnimatePresence>
 
           {previewCode ? (

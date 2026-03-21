@@ -2,21 +2,29 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
 const STEPS = [
-  "Analyzing sketch layout...",
-  "Detecting UI components...",
-  "Generating React code...",
-  "Applying styles...",
+  { key: "analyzing", label: "Analyzing sketch structure..." },
+  { key: "designing", label: "Designing premium UI..." },
+  { key: "processing", label: "Generating React code..." },
 ];
 
-export function ProcessingOverlay() {
-  const [currentStep, setCurrentStep] = useState(0);
+interface Props {
+  status?: string;
+}
+
+export function ProcessingOverlay({ status }: Props) {
+  const [fallbackStep, setFallbackStep] = useState(0);
+
+  // Determine current step from status prop or fallback timer
+  const activeIdx = STEPS.findIndex((s) => s.key === status);
+  const currentStep = activeIdx >= 0 ? activeIdx : fallbackStep;
 
   useEffect(() => {
+    if (activeIdx >= 0) return; // status-driven, no timer needed
     const interval = setInterval(() => {
-      setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1));
-    }, 700);
+      setFallbackStep((s) => Math.min(s + 1, STEPS.length - 1));
+    }, 2500);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeIdx]);
 
   return (
     <motion.div
@@ -32,18 +40,18 @@ export function ProcessingOverlay() {
       <div className="space-y-2 text-center">
         {STEPS.map((step, i) => (
           <p
-            key={step}
+            key={step.key}
             className="text-xs"
             style={{
               opacity: i === currentStep ? 1 : i < currentStep ? 0.5 : 0.2,
               color: i === currentStep ? "var(--scifi-cyan)" : i < currentStep ? "var(--scifi-green)" : "var(--scifi-text-dim)",
               fontFamily: "'Courier New', monospace",
               fontWeight: i === currentStep ? 600 : 400,
-              transition: "all 0.2s",
+              transition: "all 0.3s",
             }}
           >
-            {i < currentStep ? "✓ " : i === currentStep ? "→ " : "  "}
-            {step}
+            {i < currentStep ? "// " : i === currentStep ? ">> " : "   "}
+            {step.label}
           </p>
         ))}
       </div>

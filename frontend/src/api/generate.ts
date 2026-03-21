@@ -1,6 +1,4 @@
 // ─── API Configuration ───
-// In development, requests proxy to localhost:4000 via Vite config.
-// In production, set this to your API Gateway URL.
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export interface GenerateRequest {
@@ -14,14 +12,11 @@ export interface GenerateRequest {
 }
 
 export interface GenerateResponse {
-  component: string;    // Generated React + Tailwind code
-  description: string;  // Human-readable description of what was detected
-  gen_id?: string;      // DynamoDB generation ID
+  component: string;
+  description: string;
+  gen_id?: string;
 }
 
-/**
- * Call the backend to generate React code from a sketch image.
- */
 export async function generateFromSketch(
   request: GenerateRequest
 ): Promise<GenerateResponse> {
@@ -30,19 +25,17 @@ export async function generateFromSketch(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
   });
-
   if (!response.ok) {
     const error = await response.text();
     throw new Error(`Generation failed: ${error}`);
   }
-
-  const data = await response.json();
-  return data;
+  return response.json();
 }
 
 /**
- * Streaming version — receives code token by token.
- * Use this for the "code appearing character by character" effect.
+ * Streaming version — SSE status events first, then raw code tokens.
+ * Status events: lines starting with "data: " followed by \n\n
+ * Code tokens: everything after the last status event
  */
 export async function generateFromSketchStream(
   request: GenerateRequest,
@@ -53,7 +46,6 @@ export async function generateFromSketchStream(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
   });
-
   if (!response.ok) {
     throw new Error(`Generation failed: ${response.statusText}`);
   }
@@ -61,26 +53,58 @@ export async function generateFromSketchStream(
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
   let fullText = "";
+  let codeStarted = false;
 
   if (reader) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
-      fullText += chunk;
-      onToken(chunk);
+
+      if (!codeStarted) {
+        // Before code starts, check for SSE status lines
+        // SSE lines end with \n\n, code doesn't start with "data: "
+        let remaining = chunk;
+        while (remaining.length > 0) {
+          const sseEnd = remaining.indexOf("\n\n");
+          if (sseEnd !== -1) {
+            const line = remaining.slice(0, sseEnd).trim();
+            remaining = remaining.slice(sseEnd + 2);
+            if (line.startsWith("data: ")) {
+              onToken(line); // SSE status event
+            } else if (line) {
+              // First code chunk
+              codeStarted = true;
+              fullText += line + remaining;
+              onToken(line + remaining);
+              remaining = "";
+            }
+          } else {
+            // No \n\n found — either partial SSE or start of code
+            if (remaining.startsWith("data: ")) {
+              // Partial SSE, wait for more
+              // Put back — but we can't, so just skip
+              break;
+            } else if (remaining.trim()) {
+              codeStarted = true;
+              fullText += remaining;
+              onToken(remaining);
+            }
+            remaining = "";
+          }
+        }
+      } else {
+        // Code phase — pass through directly
+        fullText += chunk;
+        onToken(chunk);
+      }
     }
   }
 
-  // Parse the final complete response
   try {
     const parsed = JSON.parse(fullText);
     return parsed;
   } catch {
-    // If streaming returned raw code (not JSON), wrap it
-    return {
-      component: fullText,
-      description: "Generated component",
-    };
+    return { component: fullText, description: "Generated component" };
   }
 }
