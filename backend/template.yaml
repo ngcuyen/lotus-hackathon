@@ -11,6 +11,7 @@ Globals:
       Variables:
         S3_BUCKET: !Ref ImageBucket
         MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+        DYNAMODB_TABLE: !Ref GenerationsTable
 
 Resources:
   # ─── API Gateway ───
@@ -45,6 +46,8 @@ Resources:
               Resource: "arn:aws:bedrock:*::foundation-model/*"
         - S3WritePolicy:
             BucketName: !Ref ImageBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GenerationsTable
 
   # ─── Lambda: Generate Stream ───
   GenerateStreamFunction:
@@ -68,6 +71,8 @@ Resources:
               Resource: "arn:aws:bedrock:*::foundation-model/*"
         - S3WritePolicy:
             BucketName: !Ref ImageBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GenerationsTable
 
   # ─── S3 Bucket for sketch images ───
   ImageBucket:
@@ -79,6 +84,19 @@ Resources:
           - Id: CleanupOldSketches
             Status: Enabled
             ExpirationInDays: 7
+
+  # ─── DynamoDB Table for generations ───
+  GenerationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sketch2app-generations
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: gen_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: gen_id
+          KeyType: HASH
 
 Outputs:
   ApiUrl:

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Code2, RotateCcw, Zap, Eye, Box, Sparkles, Square, Palette, Moon, BarChart3, Plus, Edit3, Hand } from "lucide-react";
+import { Camera, Code2, RotateCcw, Zap, Eye, Box, Sparkles, Square, Palette, Moon, BarChart3, Plus, Edit3, Hand, Clock } from "lucide-react";
 import { type DemoSketch } from "./utils/demoSketches";
 import { CameraCapture } from "./components/CameraCapture";
 import { LivePreview } from "./components/LivePreview";
@@ -11,6 +11,7 @@ import { PanelCustomizer, CustomizationSettings } from "./components/PanelCustom
 import { ThreePanelLayout } from "./components/ThreePanelLayout";
 import { InputPanel } from "./components/InputPanel";
 import { PreviewPanel } from "./components/PreviewPanel";
+import { HistoryPanel } from "./components/HistoryPanel";
 import { useSketchToApp } from "./hooks/useSketchToApp";
 import { ScifiPanel, ScifiButton, ScifiNav, ScifiBadge, ScifiMetricTile, ScifiProgressBar, ScifiStyleSelector, ScifiCustomStylePopover } from "./components/scifi";
 
@@ -23,6 +24,7 @@ export default function App() {
   const [customStyles, setCustomStyles] = useState<any[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [selectedElement, setSelectedElement] = useState<any>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [panelSettings, setPanelSettings] = useState<CustomizationSettings>({
     panelOpacity: 75,
     panelBlur: 12,
@@ -60,7 +62,7 @@ export default function App() {
   ];
 
   // Initialize hook first
-  const { generate, loadMockData, result, status, error, latency, reset } = useSketchToApp();
+  const { generate, loadMockData, loadResult, result, status, error, latency, reset } = useSketchToApp();
 
   const handleSaveCustomStyle = useCallback((styleData: any) => {
     const newStyle = {
@@ -140,6 +142,10 @@ export default function App() {
       generate(sketchImage, undefined, selectedStyle, selectedPurpose ?? undefined);
     }
   }, [sketchImage, generate, selectedStyle]);
+
+  const handleLoadFromHistory = useCallback((component: string, description: string) => {
+    loadResult(component, description);
+  }, [loadResult]);
 
   return (
     <div className="h-screen flex flex-col relative" style={{ backgroundColor: "var(--scifi-bg)" }}>
@@ -223,6 +229,28 @@ export default function App() {
           />
 
           <div className="h-6 w-px" style={{ backgroundColor: "rgba(255, 106, 0, 0.3)" }} />
+
+          {/* History Toggle */}
+          <button
+            onClick={() => { setShowHistory(!showHistory); setSelectedElement(null); }}
+            title="Generation History"
+            style={{
+              width: "32px",
+              height: "32px",
+              clipPath: "polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px)",
+              backgroundColor: showHistory ? "rgba(0, 212, 255, 0.2)" : "transparent",
+              border: `1px solid ${showHistory ? "var(--scifi-cyan)" : "rgba(0, 212, 255, 0.3)"}`,
+              color: "var(--scifi-cyan)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: showHistory ? "0 0 8px var(--scifi-cyan)40" : "none",
+            }}
+          >
+            <Clock className="w-3.5 h-3.5" />
+          </button>
 
           {/* Edit Mode Toggle */}
           {result && (
@@ -390,14 +418,18 @@ export default function App() {
             />
           }
           rightPanel={
-            <PanelCustomizer
-              onApply={(settings) => {
-                setPanelSettings(settings);
-                console.log("Applied panel settings:", settings);
-              }}
-            />
+            selectedElement ? (
+              <PanelCustomizer
+                onApply={(settings) => {
+                  setPanelSettings(settings);
+                  console.log("Applied panel settings:", settings);
+                }}
+              />
+            ) : showHistory ? (
+              <HistoryPanel onLoad={handleLoadFromHistory} />
+            ) : null
           }
-          showRightPanel={!!selectedElement}
+          showRightPanel={!!selectedElement || showHistory}
         />
       </div>
 

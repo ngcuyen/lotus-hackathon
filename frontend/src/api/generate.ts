@@ -14,6 +14,7 @@ export interface GenerateRequest {
 export interface GenerateResponse {
   component: string;    // Generated React + Tailwind code
   description: string;  // Human-readable description of what was detected
+  gen_id?: string;      // DynamoDB generation ID
 }
 
 /**

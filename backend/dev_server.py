@@ -35,6 +35,8 @@ from prompts import (
     ANALYZE_SKETCH_SYSTEM_PROMPT, build_analysis_messages,
 )
 
+from db import save_generation, get_generation, list_generations, delete_generation
+
 app = Flask(__name__)
 CORS(app)
 
@@ -202,6 +204,24 @@ def generate():
             result["sketch_analysis"] = sketch_analysis
         logger.info(f"[5/5] Done — description: {result.get('description', 'N/A')}")
         result["latency_seconds"] = round(elapsed, 2)
+
+        # ── Save to DynamoDB ──
+        try:
+            saved = save_generation(
+                style=style,
+                purpose=purpose,
+                component=result["component"],
+                description=result.get("description", ""),
+                latency_seconds=elapsed,
+                sketch_analysis=sketch_analysis,
+                parent_gen_id=body.get("parent_gen_id"),
+                modification=modification,
+            )
+            result["gen_id"] = saved["gen_id"]
+            logger.info(f"[DB] Saved as {saved['gen_id']}")
+        except Exception as db_err:
+            logger.warning(f"[DB] Save failed (non-blocking): {db_err}")
+
         return jsonify(result)
 
     except Exception as e:
@@ -283,6 +303,31 @@ def generate_stream():
                         yield text
 
     return Response(stream(), mimetype="text/plain")
+
+
+@app.route("/api/generations", methods=["GET"])
+def api_list_generations():
+    """List recent generations."""
+    limit = request.args.get("limit", 50, type=int)
+    items = list_generations(limit)
+    return jsonify(items)
+
+
+@app.route("/api/generations/<gen_id>", methods=["GET"])
+def api_get_generation(gen_id):
+    """Get a single generation with full component code."""
+    item = get_generation(gen_id)
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(item)
+
+
+@app.route("/api/generations/<gen_id>", methods=["DELETE"])
+def api_delete_generation(gen_id):
+    """Delete a generation."""
+    if delete_generation(gen_id):
+        return jsonify({"ok": True})
+    return jsonify({"error": "Delete failed"}), 500
 
 
 @app.route("/api/mock-generate", methods=["POST"])

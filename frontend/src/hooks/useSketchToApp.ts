@@ -12,6 +12,7 @@ interface Latency {
 interface UseSketchToAppReturn {
   generate: (imageBase64: string, modification?: string, style?: string, purpose?: string) => Promise<void>;
   loadMockData: () => void;
+  loadResult: (component: string, description: string) => void;
   result: GenerateResponse | null;
   status: Status;
   error: string | null;
@@ -154,5 +155,11 @@ export default function App() {
     console.log("✅ Mock data loaded successfully");
   }, []);
 
-  return { generate, loadMockData, result, status, error, latency, reset };
+  const loadResult = useCallback((component: string, description: string) => {
+    setResult({ component, description });
+    previousCodeRef.current = component;
+    setStatus("done");
+  }, []);
+
+  return { generate, loadMockData, loadResult, result, status, error, latency, reset };
 }
