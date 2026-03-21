@@ -9,6 +9,7 @@ export interface GenerateRequest {
   modification?: string;
   style?: string;
   purpose?: string;
+  custom_guidelines?: string;
 }
 
 export interface GenerateResponse {

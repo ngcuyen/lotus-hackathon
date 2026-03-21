@@ -16,48 +16,33 @@ export interface PanelSettingsResponse {
   isDefault?: boolean;
 }
 
-/**
- * Get panel customization settings for current user.
- */
 export async function getPanelSettings(userId: string = "default"): Promise<PanelSettingsResponse> {
-  const response = await fetch(`${API_BASE}/api/settings/panel?userId=${userId}`);
-  if (!response.ok) {
-    throw new Error("Failed to load panel settings");
-  }
+  const response = await fetch(`${API_BASE}/settings/panel?userId=${userId}`);
+  if (!response.ok) throw new Error("Failed to load panel settings");
   return response.json();
 }
 
-/**
- * Save panel customization settings.
- */
 export async function savePanelSettings(
   settings: PanelSettings,
   userId: string = "default"
 ): Promise<{ success: boolean; message: string }> {
-  const response = await fetch(`${API_BASE}/api/settings/panel`, {
+  const response = await fetch(`${API_BASE}/settings/panel`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, settings }),
   });
-  if (!response.ok) {
-    throw new Error("Failed to save panel settings");
-  }
+  if (!response.ok) throw new Error("Failed to save panel settings");
   return response.json();
 }
 
-/**
- * Reset panel settings to defaults.
- */
 export async function resetPanelSettings(userId: string = "default"): Promise<{
   success: boolean;
   settings: PanelSettings;
   message: string;
 }> {
-  const response = await fetch(`${API_BASE}/api/settings/panel/reset?userId=${userId}`, {
+  const response = await fetch(`${API_BASE}/settings/panel/reset?userId=${userId}`, {
     method: "POST",
   });
-  if (!response.ok) {
-    throw new Error("Failed to reset panel settings");
-  }
+  if (!response.ok) throw new Error("Failed to reset panel settings");
   return response.json();
 }

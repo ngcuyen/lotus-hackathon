@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 
 interface Props {
   code: string;
@@ -7,187 +7,170 @@ interface Props {
   onElementDragged?: (element: any, deltaX: number, deltaY: number) => void;
 }
 
-export function LivePreview({ code, editMode = false, onElementSelected, onElementDragged }: Props) {
-  const wrappedCode = ensureDefaultExport(code);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+export interface LivePreviewHandle {
+  applyStyle: (styles: Record<string, string>) => void;
+  applyText: (text: string) => void;
+  deleteElement: () => void;
+}
 
-  // Listen for messages from iframe
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === "ELEMENT_CLICKED") {
-        onElementSelected?.(event.data);
-      } else if (event.data.type === "ELEMENT_DRAGGED") {
-        onElementDragged?.(event.data.element, event.data.deltaX, event.data.deltaY);
-      }
-    };
+export const LivePreview = forwardRef<LivePreviewHandle, Props>(
+  ({ code, editMode = false, onElementSelected, onElementDragged }, ref) => {
+    const wrappedCode = ensureDefaultExport(code);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [onElementSelected, onElementDragged]);
+    // Expose methods to parent
+    useImperativeHandle(ref, () => ({
+      applyStyle: (styles) => {
+        iframeRef.current?.contentWindow?.postMessage({ type: "APPLY_STYLE", styles }, "*");
+      },
+      applyText: (text) => {
+        iframeRef.current?.contentWindow?.postMessage({ type: "APPLY_TEXT", text }, "*");
+      },
+      deleteElement: () => {
+        iframeRef.current?.contentWindow?.postMessage({ type: "DELETE_ELEMENT" }, "*");
+      },
+    }));
 
-  // Edit mode script injection
-  const editModeScript = editMode
-    ? `
+    useEffect(() => {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data.type === "ELEMENT_CLICKED") {
+          onElementSelected?.(event.data);
+        } else if (event.data.type === "ELEMENT_DRAGGED") {
+          onElementDragged?.(event.data.element, event.data.deltaX, event.data.deltaY);
+        }
+      };
+      window.addEventListener("message", handleMessage);
+      return () => window.removeEventListener("message", handleMessage);
+    }, [onElementSelected, onElementDragged]);
+
+    const editModeScript = editMode
+      ? `
     <script>
-      // Hover effect
+      let selectedEl = null;
+
+      // Listen for style/text/delete commands from parent
+      window.addEventListener('message', function(e) {
+        if (!selectedEl) return;
+        if (e.data.type === 'APPLY_STYLE') {
+          Object.entries(e.data.styles).forEach(function(pair) {
+            selectedEl.style[pair[0]] = pair[1];
+          });
+        } else if (e.data.type === 'APPLY_TEXT') {
+          // Only set text on leaf nodes
+          if (selectedEl.children.length === 0) {
+            selectedEl.textContent = e.data.text;
+          } else {
+            // Find first text node
+            for (let i = 0; i < selectedEl.childNodes.length; i++) {
+              if (selectedEl.childNodes[i].nodeType === 3) {
+                selectedEl.childNodes[i].textContent = e.data.text;
+                break;
+              }
+            }
+          }
+        } else if (e.data.type === 'DELETE_ELEMENT') {
+          selectedEl.remove();
+          selectedEl = null;
+        }
+      });
+
+      // Hover
       document.addEventListener('mouseover', function(e) {
         if (e.target.id === 'root' || e.target.id === 'error') return;
         e.target.style.outline = '2px solid #ff6a00';
         e.target.style.outlineOffset = '2px';
-        e.target.style.cursor = 'move';
+        e.target.style.cursor = 'pointer';
       }, true);
-
       document.addEventListener('mouseout', function(e) {
-        if (e.target === draggedElement && isDragging) return; // Don't remove outline while dragging
-        e.target.style.outline = '';
-        e.target.style.outlineOffset = '';
-        e.target.style.cursor = '';
+        if (e.target === draggedElement && isDragging) return;
+        if (e.target !== selectedEl) {
+          e.target.style.outline = '';
+          e.target.style.outlineOffset = '';
+          e.target.style.cursor = '';
+        }
       }, true);
 
-      // Drag and drop state
+      // Drag state
       let isDragging = false;
       let draggedElement = null;
-      let startX = 0;
-      let startY = 0;
-      let currentX = 0;
-      let currentY = 0;
-      let dragThreshold = 5; // px threshold to distinguish click from drag
+      let startX = 0, startY = 0, currentX = 0, currentY = 0;
+      let dragThreshold = 5;
 
-      // Mouse down - prepare for drag
       document.addEventListener('mousedown', function(e) {
         const el = e.target;
         if (el.id === 'root' || el.id === 'error') return;
-
         draggedElement = el;
-        startX = e.clientX;
-        startY = e.clientY;
-        currentX = startX;
-        currentY = startY;
+        startX = e.clientX; startY = e.clientY;
+        currentX = startX; currentY = startY;
       }, true);
 
-      // Mouse move - drag element
       document.addEventListener('mousemove', function(e) {
         if (!draggedElement) return;
-
-        const deltaX = e.clientX - currentX;
-        const deltaY = e.clientY - currentY;
         const totalDeltaX = e.clientX - startX;
         const totalDeltaY = e.clientY - startY;
-
-        // Check if we've moved beyond threshold
         if (!isDragging && (Math.abs(totalDeltaX) > dragThreshold || Math.abs(totalDeltaY) > dragThreshold)) {
           isDragging = true;
           draggedElement.style.outline = '2px dashed #00d4ff';
           draggedElement.style.outlineOffset = '2px';
           draggedElement.style.opacity = '0.7';
         }
-
         if (isDragging) {
-          e.preventDefault();
-          e.stopPropagation();
-          currentX = e.clientX;
-          currentY = e.clientY;
-
-          // Apply transform for smooth dragging
-          draggedElement.style.transform = \`translate(\${totalDeltaX}px, \${totalDeltaY}px)\`;
-          draggedElement.style.cursor = 'move';
+          e.preventDefault(); e.stopPropagation();
+          currentX = e.clientX; currentY = e.clientY;
+          draggedElement.style.transform = 'translate(' + totalDeltaX + 'px, ' + totalDeltaY + 'px)';
         }
       }, true);
 
-      // Mouse up - end drag or handle click
       document.addEventListener('mouseup', function(e) {
         if (!draggedElement) return;
-
         const el = draggedElement;
         const totalDeltaX = e.clientX - startX;
         const totalDeltaY = e.clientY - startY;
 
         if (isDragging) {
-          // Drag end - apply final position with CSS
-          e.preventDefault();
-          e.stopPropagation();
+          e.preventDefault(); e.stopPropagation();
+          const cs = window.getComputedStyle(el);
+          if (cs.position === 'static') el.style.position = 'relative';
+          el.style.left = ((parseFloat(cs.left) || 0) + totalDeltaX) + 'px';
+          el.style.top = ((parseFloat(cs.top) || 0) + totalDeltaY) + 'px';
+          el.style.transform = '';
+          el.style.outline = ''; el.style.outlineOffset = '';
+          el.style.opacity = ''; el.style.cursor = '';
 
-          // Ensure element is positioned
-          const computedStyle = window.getComputedStyle(el);
-          if (computedStyle.position === 'static') {
-            el.style.position = 'relative';
-          }
-
-          // Parse current position
-          const currentLeft = parseFloat(computedStyle.left) || 0;
-          const currentTop = parseFloat(computedStyle.top) || 0;
-
-          // Apply final position (remove transform, use left/top)
-          el.style.left = \`\${currentLeft + totalDeltaX}px\`;
-          el.style.top = \`\${currentTop + totalDeltaY}px\`;
-          el.style.transform = ''; // Remove transform
-
-          // Send message (for logging/history only, not for regeneration)
-          const rect = el.getBoundingClientRect();
           window.parent.postMessage({
-            type: 'ELEMENT_DRAGGED',
-            deltaX: Math.round(totalDeltaX),
-            deltaY: Math.round(totalDeltaY),
-            element: {
-              tagName: el.tagName,
-              className: el.className || '',
-              textContent: (el.textContent || '').slice(0, 100),
-              rect: {
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height
-              }
-            }
+            type: 'ELEMENT_DRAGGED', deltaX: Math.round(totalDeltaX), deltaY: Math.round(totalDeltaY),
+            element: { tagName: el.tagName, className: el.className || '', textContent: (el.textContent || '').slice(0, 100) }
           }, '*');
-
-          // Reset visual styles (keep position)
-          el.style.outline = '';
-          el.style.outlineOffset = '';
-          el.style.opacity = '';
-          el.style.cursor = '';
         } else {
-          // Click - send selection
-          e.preventDefault();
-          e.stopPropagation();
+          e.preventDefault(); e.stopPropagation();
+          // Deselect previous
+          if (selectedEl && selectedEl !== el) {
+            selectedEl.style.outline = '';
+            selectedEl.style.outlineOffset = '';
+          }
+          selectedEl = el;
+          el.style.outline = '2px solid #00d4ff';
+          el.style.outlineOffset = '2px';
 
           const rect = el.getBoundingClientRect();
           const computed = getComputedStyle(el);
-
           window.parent.postMessage({
-            type: 'ELEMENT_CLICKED',
-            tagName: el.tagName,
-            className: el.className || '',
+            type: 'ELEMENT_CLICKED', tagName: el.tagName, className: el.className || '',
             textContent: (el.textContent || '').slice(0, 100),
-            rect: {
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height
-            },
+            rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
             computedStyle: {
-              backgroundColor: computed.backgroundColor,
-              color: computed.color,
-              fontSize: computed.fontSize,
-              padding: computed.padding,
-              borderRadius: computed.borderRadius,
+              backgroundColor: computed.backgroundColor, color: computed.color,
+              fontSize: computed.fontSize, padding: computed.padding, borderRadius: computed.borderRadius,
             }
           }, '*');
         }
-
-        // Reset drag state
-        isDragging = false;
-        draggedElement = null;
-        startX = 0;
-        startY = 0;
-        currentX = 0;
-        currentY = 0;
+        isDragging = false; draggedElement = null;
+        startX = 0; startY = 0; currentX = 0; currentY = 0;
       }, true);
-    <\/script>
-    `
-    : "";
+    <\/script>`
+      : "";
 
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -223,31 +206,28 @@ export function LivePreview({ code, editMode = false, onElementSelected, onEleme
 </body>
 </html>`;
 
-  return (
-    <iframe
-      ref={iframeRef}
-      srcDoc={html}
-      title="Live Preview"
-      sandbox="allow-scripts allow-same-origin"
-      style={{ width: "100%", height: "100%", minHeight: 500, border: "none", background: "white" }}
-    />
-  );
-}
+    return (
+      <iframe
+        ref={iframeRef}
+        srcDoc={html}
+        title="Live Preview"
+        sandbox="allow-scripts allow-same-origin"
+        style={{ width: "100%", height: "100%", minHeight: 500, border: "none", background: "white" }}
+      />
+    );
+  }
+);
 
 function ensureDefaultExport(code: string): string {
-  // Remove import/export statements — not needed in script context
   let cleaned = code
-    .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '')
-    .replace(/^export\s+default\s+/gm, '')
+    .replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, "")
+    .replace(/^export\s+default\s+/gm, "")
     .trim();
-
-  // Ensure function is named App
-  if (!cleaned.includes('function App')) {
+  if (!cleaned.includes("function App")) {
     const funcMatch = cleaned.match(/function\s+(\w+)\s*\(/);
-    if (funcMatch && funcMatch[1] !== 'App') {
-      cleaned = cleaned.replace(funcMatch[0], 'function App(');
+    if (funcMatch && funcMatch[1] !== "App") {
+      cleaned = cleaned.replace(funcMatch[0], "function App(");
     }
   }
-
   return cleaned;
 }

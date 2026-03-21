@@ -10,7 +10,7 @@ interface Latency {
 }
 
 interface UseSketchToAppReturn {
-  generate: (imageBase64: string, modification?: string, style?: string, purpose?: string) => Promise<void>;
+  generate: (imageBase64: string, modification?: string, style?: string, purpose?: string, customGuidelines?: string) => Promise<void>;
   loadMockData: () => void;
   loadResult: (component: string, description: string) => void;
   result: GenerateResponse | null;
@@ -34,7 +34,7 @@ export function useSketchToApp(): UseSketchToAppReturn {
   const [latency, setLatency] = useState<Latency | null>(null);
   const previousCodeRef = useRef<string | null>(null);
 
-  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string, purpose?: string) => {
+  const generate = useCallback(async (imageBase64: string, modification?: string, style?: string, purpose?: string, customGuidelines?: string) => {
     setStatus("processing");
     setError(null);
     const startTime = performance.now();
@@ -48,6 +48,7 @@ export function useSketchToApp(): UseSketchToAppReturn {
         modification,
         style,
         purpose,
+        custom_guidelines: customGuidelines,
       });
 
       const aiTime = performance.now() - startTime;
