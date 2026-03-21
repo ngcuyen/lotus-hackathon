@@ -8,7 +8,6 @@ export interface GenerateRequest {
   previous_code?: string;
   modification?: string;
   style?: string;
-  purpose?: string;  // e.g. "game", "card", "landing", "todo", "chat", etc.
 }
 
 export interface GenerateResponse {

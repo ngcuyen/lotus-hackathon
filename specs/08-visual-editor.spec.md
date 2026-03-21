@@ -1,3 +1,5 @@
+
+
 # Spec 08 — Visual Editor (Figma-like Edit on Generated UI)
 
 **Owner**: Person A (Frontend)
@@ -5,7 +7,7 @@
 **Estimated effort**: 5 hours
 **Files to create**: `frontend/src/components/VisualEditor.tsx`, `frontend/src/hooks/useVersionHistory.ts`
 **Files to modify**: `frontend/src/App.tsx`, `frontend/src/components/LivePreview.tsx`
-**Files NOT to touch**: `backend/*` (backend API đã hỗ trợ `modification` field — chỉ cần gọi đúng)
+**Files NOT to touch**: `backend/*` (backend API đã hỗ trợ `modification` field — chỉ cần gọi đúng) 
 
 ---
 

@@ -7,3 +7,7 @@ __pycache__/
 .aws-sam/
 .vite/
 .DS_Store
+backend/node_modules/
+backend/venv
+
+frontend/node_modules/
