@@ -112,3 +112,44 @@ def delete_generation(gen_id):
     except Exception as e:
         logger.error(f"[DB] Failed to delete {gen_id}: {e}")
         return False
+
+
+# ─── Published pages ─────────────────────────────────────────────────────────
+
+PUBLISH_TABLE = os.environ.get("DYNAMODB_PUBLISH_TABLE", "sketch2app-published")
+_publish_table = None
+
+
+def _get_publish_table():
+    global _publish_table
+    if _publish_table is None:
+        dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
+        _publish_table = dynamodb.Table(PUBLISH_TABLE)
+    return _publish_table
+
+
+def save_published(publish_id, html, title=None, gen_id=None):
+    """Save a published HTML page."""
+    now = datetime.now(timezone.utc).isoformat()
+    item = {
+        "publish_id": publish_id,
+        "html": html,
+        "created_at": now,
+    }
+    if title:
+        item["title"] = title
+    if gen_id:
+        item["gen_id"] = gen_id
+    _get_publish_table().put_item(Item=item)
+    logger.info(f"[DB] Published {publish_id}")
+    return item
+
+
+def get_published(publish_id):
+    """Get a published page by ID."""
+    try:
+        resp = _get_publish_table().get_item(Key={"publish_id": publish_id})
+        return resp.get("Item")
+    except Exception as e:
+        logger.error(f"[DB] Failed to get published {publish_id}: {e}")
+        return None

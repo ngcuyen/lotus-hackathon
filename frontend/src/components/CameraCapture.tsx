@@ -281,17 +281,6 @@ export function CameraCapture({ onCapture, currentImage }: Props) {
     <div className="h-full flex flex-col items-center justify-center gap-5 p-6">
       {/* Header */}
       <div className="text-center">
-        <div
-          className="inline-block px-3 py-1 mb-3 text-[10px] font-bold uppercase tracking-widest"
-          style={{
-            color: "var(--scifi-green)",
-            border: "1px solid var(--scifi-green)",
-            fontFamily: "'Courier New', monospace",
-            clipPath: "polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px)",
-          }}
-        >
-          STEP 1
-        </div>
         <h2
           className="text-base font-bold uppercase tracking-wider mb-1.5"
           style={{ color: "var(--scifi-cyan)", fontFamily: "'Courier New', monospace" }}

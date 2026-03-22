@@ -52,6 +52,10 @@ export default function App() {
     { id: "game",      name: "Game" },
     { id: "mobile",    name: "Mobile" },
     { id: "admin",     name: "Admin" },
+    { id: "card",      name: "Card" },
+    { id: "invitation",name: "Invitation" },
+    { id: "menu",      name: "Menu" },
+    { id: "resume",    name: "Resume" },
   ];
 
   // Initialize hook first

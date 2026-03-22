@@ -120,6 +120,10 @@ PURPOSE_INTENTS = {
     "game": "a game UI with: score/lives display, interactive game board or play area (grid, cards, or canvas), control buttons (start, pause, restart), level indicator, high score, timer. Make the game actually playable with useState logic.",
     "mobile": "a mobile app screen (max-w-sm mx-auto with device frame): status bar, main content with cards/lists, bottom tab bar (4-5 tabs with icons and labels, active state). Use large touch targets (min 44px), rounded corners, and mobile-appropriate spacing.",
     "admin": "an admin panel with: sidebar (logo, nav sections), data table (6+ rows with checkbox select, avatar, name, email, role, status badge, actions dropdown), top bar with search and filters, bulk action buttons, pagination (showing 'Page 1 of 5, 48 results'). Include CRUD action buttons.",
+    "card": "a professional business card / digital namecard with: person's name (large, bold), job title, company name/logo placeholder, contact info (phone, email, website, address), social media icons, QR code placeholder. Use elegant typography, subtle gradients or accent colors, clean layout. Should look print-ready and premium.",
+    "invitation": "an event invitation card with: event name (large decorative typography), date/time/location details, RSVP section or button, decorative borders or ornamental elements, host name, dress code or special notes. Use elegant fonts, rich colors, and celebratory visual elements.",
+    "menu": "a restaurant/cafe menu with: restaurant name and logo placeholder at top, menu sections (appetizers, mains, desserts, drinks) each with 3-5 items showing name, description, and price. Use elegant typography hierarchy, decorative dividers between sections, and a cohesive color scheme.",
+    "resume": "a professional one-page resume/CV with: header (name, title, contact info, photo placeholder), professional summary, work experience (2-3 entries with company, role, dates, bullet points), education, skills (progress bars or tags), languages. Use clean grid layout, clear hierarchy, and professional typography.",
 }
 
 

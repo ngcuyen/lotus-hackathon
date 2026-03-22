@@ -13,6 +13,8 @@ Usage:
 
 import json
 import time
+import uuid
+import boto3
 import base64
 import logging
 import os
@@ -36,10 +38,12 @@ from prompts import (
     DESIGNER_SYSTEM_PROMPT, build_design_messages,
 )
 
-from db import save_generation, get_generation, list_generations, delete_generation
+from db import save_generation, get_generation, list_generations, delete_generation, save_published, get_published
 
 app = Flask(__name__)
 CORS(app)
+
+AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -402,6 +406,56 @@ def api_delete_generation(gen_id):
     if delete_generation(gen_id):
         return jsonify({"ok": True})
     return jsonify({"error": "Delete failed"}), 500
+
+
+@app.route("/api/publish", methods=["POST"])
+def api_publish():
+    """Publish an HTML snapshot to S3 static website. Returns public URL."""
+    body = request.json
+    html = body.get("html")
+    if not html:
+        return jsonify({"error": "html is required"}), 400
+
+    publish_id = str(uuid.uuid4())[:8]
+    title = body.get("title", "Sketch2App")
+
+    full_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{{ margin:0; min-height:100vh; }}</style>
+</head>
+<body>
+{html}
+</body>
+</html>"""
+
+    try:
+        s3 = boto3.client("s3", region_name=AWS_REGION)
+        s3.put_object(
+            Bucket="sketch2app-published",
+            Key=f"{publish_id}.html",
+            Body=full_html.encode("utf-8"),
+            ContentType="text/html; charset=utf-8",
+        )
+        url = f"http://sketch2app-published.s3-website-{AWS_REGION}.amazonaws.com/{publish_id}.html"
+        logger.info(f"[PUBLISH] Published {publish_id} → {url}")
+        return jsonify({"publish_id": publish_id, "url": url})
+    except Exception as e:
+        logger.error(f"[PUBLISH] Failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/p/<publish_id>")
+def serve_published(publish_id):
+    """Serve a published HTML page."""
+    item = get_published(publish_id)
+    if not item:
+        return "<h1>Page not found</h1>", 404
+    return item["html"], 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 @app.route("/api/mock-generate", methods=["POST"])

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, forwardRef } from "react";
-import { Box } from "lucide-react";
+import { Box, Globe, Copy, Check, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { LivePreview, type LivePreviewHandle } from "./LivePreview";
 import { ProcessingOverlay } from "./ProcessingOverlay";
@@ -29,6 +29,9 @@ export const PreviewPanel = forwardRef<LivePreviewHandle, PreviewPanelProps>(
     onApplyEdits,
   }, ref) {
     const livePreviewRef = useRef<LivePreviewHandle>(null);
+    const [publishing, setPublishing] = useState(false);
+    const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
 
     // Expose LivePreview handle to parent (for VisualEditor direct manipulation)
     // Forward both internal ref and external ref to the same LivePreview
@@ -83,16 +86,52 @@ export const PreviewPanel = forwardRef<LivePreviewHandle, PreviewPanelProps>(
             </span>
           </div>
           {status === "done" && result && (
-            <div
-              className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
-              style={{
-                color: editMode ? "var(--scifi-orange)" : "var(--scifi-green)",
-                border: `1px solid ${editMode ? "var(--scifi-orange)" : "var(--scifi-green)"}`,
-                clipPath: "polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0 calc(100% - 2px), 0 2px)",
-                fontFamily: "'Courier New', monospace",
-              }}
-            >
-              {editMode ? "EDIT MODE" : "READY"}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  if (!livePreviewRef.current || publishing) return;
+                  setPublishing(true);
+                  try {
+                    const html = await livePreviewRef.current.getSnapshot();
+                    const resp = await fetch("/api/publish", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ html, gen_id: result?.gen_id }),
+                    });
+                    const data = await resp.json();
+                    if (data.url) setPublishedUrl(data.url);
+                  } catch (e) {
+                    console.error("Publish failed:", e);
+                  } finally {
+                    setPublishing(false);
+                  }
+                }}
+                disabled={publishing}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider"
+                style={{
+                  color: "#000",
+                  backgroundColor: "var(--scifi-green)",
+                  border: "none",
+                  cursor: publishing ? "wait" : "pointer",
+                  fontFamily: "'Courier New', monospace",
+                  clipPath: "polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0 calc(100% - 2px), 0 2px)",
+                  opacity: publishing ? 0.6 : 1,
+                }}
+              >
+                <Globe className="w-3 h-3" />
+                {publishing ? "PUBLISHING..." : "PUBLISH"}
+              </button>
+              <div
+                className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
+                style={{
+                  color: editMode ? "var(--scifi-orange)" : "var(--scifi-green)",
+                  border: `1px solid ${editMode ? "var(--scifi-orange)" : "var(--scifi-green)"}`,
+                  clipPath: "polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0 calc(100% - 2px), 0 2px)",
+                  fontFamily: "'Courier New', monospace",
+                }}
+              >
+                {editMode ? "EDIT MODE" : "READY"}
+              </div>
             </div>
           )}
           {status === "streaming" && (
@@ -193,6 +232,77 @@ export const PreviewPanel = forwardRef<LivePreviewHandle, PreviewPanelProps>(
             </div>
           ) : null}
         </div>
+        {/* Publish Modal */}
+        {publishedUrl && (
+          <div
+            className="absolute inset-0 flex items-center justify-center z-50"
+            style={{ backgroundColor: "rgba(0, 0, 0, 0.8)", backdropFilter: "blur(4px)" }}
+          >
+            <div
+              className="p-6 max-w-md w-full mx-4 relative"
+              style={{
+                backgroundColor: "var(--scifi-bg)",
+                border: "1px solid var(--scifi-green)",
+                boxShadow: "0 0 30px rgba(57, 255, 20, 0.2)",
+              }}
+            >
+              <button
+                onClick={() => { setPublishedUrl(null); setCopied(false); }}
+                className="absolute top-3 right-3"
+                style={{ color: "var(--scifi-text-dim)", background: "none", border: "none", cursor: "pointer" }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="text-center mb-4">
+                <Globe className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--scifi-green)" }} />
+                <div
+                  className="text-sm font-bold uppercase tracking-wider"
+                  style={{ color: "var(--scifi-green)", fontFamily: "'Courier New', monospace" }}
+                >
+                  PUBLISHED
+                </div>
+              </div>
+
+              {/* URL + Copy */}
+              <div
+                className="flex items-center gap-2 p-2 mb-4"
+                style={{ backgroundColor: "rgba(57, 255, 20, 0.05)", border: "1px solid rgba(57, 255, 20, 0.2)" }}
+              >
+                <input
+                  readOnly
+                  value={publishedUrl}
+                  className="flex-1 bg-transparent text-xs outline-none"
+                  style={{ color: "var(--scifi-green)", fontFamily: "'Courier New', monospace" }}
+                />
+                <button
+                  onClick={() => { navigator.clipboard.writeText(publishedUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                  style={{ color: "var(--scifi-green)", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex justify-center">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publishedUrl)}&bgcolor=0a0a0f&color=39ff14`}
+                  alt="QR Code"
+                  width={180}
+                  height={180}
+                  style={{ border: "1px solid rgba(57, 255, 20, 0.3)" }}
+                />
+              </div>
+
+              <p
+                className="text-center text-[10px] mt-3 uppercase tracking-wider"
+                style={{ color: "var(--scifi-text-dim)", fontFamily: "'Courier New', monospace" }}
+              >
+                Scan to open on any device
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

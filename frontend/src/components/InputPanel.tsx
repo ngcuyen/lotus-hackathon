@@ -1,4 +1,4 @@
-import { Camera, Zap, Lock, ShoppingCart, MessageSquare, BarChart3 } from "lucide-react";
+import { Camera, Zap, Lock, ShoppingCart, MessageSquare, BarChart3, CreditCard, PartyPopper, UtensilsCrossed, FileText } from "lucide-react";
 import { CameraCapture } from "./CameraCapture";
 import { DEMO_SKETCHES, type DemoSketch } from "../utils/demoSketches";
 
@@ -68,6 +68,10 @@ export function InputPanel({
               sketch.id === "login" ? Lock :
               sketch.id === "shop" ? ShoppingCart :
               sketch.id === "chat" ? MessageSquare :
+              sketch.id === "card" ? CreditCard :
+              sketch.id === "invitation" ? PartyPopper :
+              sketch.id === "menu" ? UtensilsCrossed :
+              sketch.id === "resume" ? FileText :
               BarChart3;
 
             return (

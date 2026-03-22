@@ -356,6 +356,195 @@ function drawDashboard(): string {
   return canvas.toDataURL("image/png").split(",")[1];
 }
 
+// ─── Sketch 5: Business Card ────────────────────────────────────────────────
+
+function drawBusinessCard(): string {
+  const [canvas, ctx] = makeCanvas();
+  const cx = 320, cy = 240;
+
+  // Card outline (landscape card shape)
+  ctx.lineWidth = 2.5;
+  sRect(ctx, cx - 220, cy - 120, 440, 240, 2);
+
+  // Left side — logo circle
+  sCircle(ctx, cx - 140, cy - 40, 35);
+
+  // Name (big)
+  ctx.lineWidth = 3;
+  sLine(ctx, cx - 80, cy - 60, 200);
+  // Job title
+  ctx.lineWidth = 1.5;
+  sLine(ctx, cx - 80, cy - 38, 140);
+
+  // Divider
+  ctx.lineWidth = 1;
+  sLine(ctx, cx - 80, cy - 15, 260);
+
+  // Contact info lines (phone, email, website, address)
+  for (let i = 0; i < 4; i++) {
+    const y = cy + 5 + i * 28;
+    sRect(ctx, cx - 80, y, 14, 14, 0); // icon placeholder
+    ctx.lineWidth = 1.5;
+    sLine(ctx, cx - 55, y + 8, 120 + Math.random() * 40);
+  }
+
+  return canvas.toDataURL("image/png").split(",")[1];
+}
+
+// ─── Sketch 6: Invitation ──────────────────────────────────────────────────
+
+function drawInvitation(): string {
+  const [canvas, ctx] = makeCanvas();
+  const cx = 320, cy = 240;
+
+  // Card border (decorative double border)
+  ctx.lineWidth = 2.5;
+  sRect(ctx, cx - 180, cy - 190, 360, 380, 2);
+  ctx.lineWidth = 1;
+  sRect(ctx, cx - 168, cy - 178, 336, 356, 1);
+
+  // Decorative top element
+  sCircle(ctx, cx, cy - 145, 20);
+
+  // Event title (large)
+  ctx.lineWidth = 3;
+  sLine(ctx, cx - 100, cy - 100, 200);
+  ctx.lineWidth = 2;
+  sLine(ctx, cx - 70, cy - 78, 140);
+
+  // Date & time
+  ctx.lineWidth = 1.5;
+  sRect(ctx, cx - 90, cy - 45, 180, 40, 1);
+  sLine(ctx, cx - 60, cy - 30, 120);
+  sLine(ctx, cx - 45, cy - 12, 90);
+
+  // Location
+  sRect(ctx, cx - 12, cy + 15, 24, 24, 0); // pin icon
+  ctx.lineWidth = 1;
+  sLine(ctx, cx - 70, cy + 55, 140);
+  sLine(ctx, cx - 50, cy + 72, 100);
+
+  // RSVP button
+  ctx.lineWidth = 2;
+  sFilled(ctx, cx - 70, cy + 105, 140, 36);
+  ctx.lineWidth = 1.5;
+  sLine(ctx, cx - 30, cy + 125, 60);
+
+  return canvas.toDataURL("image/png").split(",")[1];
+}
+
+// ─── Sketch 7: Restaurant Menu ─────────────────────────────────────────────
+
+function drawMenu(): string {
+  const [canvas, ctx] = makeCanvas();
+
+  // Title
+  ctx.lineWidth = 3;
+  sLine(ctx, 220, 40, 200);
+  ctx.lineWidth = 1;
+  sLine(ctx, 260, 58, 120);
+
+  // Two columns
+  const cols = [40, 340];
+  const sectionNames = [
+    [85, 210],  // appetizers Y, mains Y
+    [85, 210],  // desserts Y, drinks Y
+  ];
+
+  cols.forEach((colX, ci) => {
+    sectionNames[ci].forEach((secY, si) => {
+      // Section header
+      ctx.lineWidth = 2.5;
+      sLine(ctx, colX, secY, 100);
+      ctx.lineWidth = 0.5;
+      sLine(ctx, colX, secY + 8, 250);
+
+      // 3 menu items per section
+      for (let i = 0; i < 3; i++) {
+        const y = secY + 25 + i * 35;
+        ctx.lineWidth = 1.5;
+        sLine(ctx, colX, y, 140); // item name
+        ctx.lineWidth = 1;
+        sLine(ctx, colX, y + 14, 180); // description
+        // Price (right-aligned)
+        ctx.lineWidth = 2;
+        sLine(ctx, colX + 210, y, 40);
+      }
+    });
+  });
+
+  return canvas.toDataURL("image/png").split(",")[1];
+}
+
+// ─── Sketch 8: Resume ──────────────────────────────────────────────────────
+
+function drawResume(): string {
+  const [canvas, ctx] = makeCanvas();
+
+  // Header section
+  ctx.lineWidth = 2;
+  sFilled(ctx, 20, 20, 600, 90);
+  // Avatar
+  sCircle(ctx, 75, 65, 30);
+  // Name
+  ctx.lineWidth = 3;
+  sLine(ctx, 125, 45, 180);
+  // Title
+  ctx.lineWidth = 1.5;
+  sLine(ctx, 125, 65, 130);
+  // Contact info (right side)
+  for (let i = 0; i < 3; i++) {
+    ctx.lineWidth = 1;
+    sLine(ctx, 430, 40 + i * 20, 150);
+  }
+
+  // Two-column layout below
+  // Left column — Experience
+  ctx.lineWidth = 2.5;
+  sLine(ctx, 30, 135, 100);
+  ctx.lineWidth = 0.5;
+  sLine(ctx, 30, 143, 350);
+
+  for (let i = 0; i < 2; i++) {
+    const y = 160 + i * 100;
+    ctx.lineWidth = 2;
+    sLine(ctx, 30, y, 160); // company
+    ctx.lineWidth = 1;
+    sLine(ctx, 30, y + 16, 100); // role + date
+    // Bullet points
+    for (let b = 0; b < 3; b++) {
+      sCircle(ctx, 38, y + 38 + b * 18, 2);
+      sLine(ctx, 48, y + 38 + b * 18, 200 + Math.random() * 80);
+    }
+  }
+
+  // Right column — Skills
+  ctx.lineWidth = 2.5;
+  sLine(ctx, 420, 135, 60);
+  ctx.lineWidth = 0.5;
+  sLine(ctx, 420, 143, 180);
+
+  for (let i = 0; i < 5; i++) {
+    const y = 162 + i * 30;
+    ctx.lineWidth = 1;
+    sLine(ctx, 420, y, 70); // skill name
+    sRect(ctx, 420, y + 8, 170, 10, 0); // progress bar bg
+    sFilled(ctx, 420, y + 8, 100 + Math.random() * 70, 10); // progress fill
+  }
+
+  // Education
+  ctx.lineWidth = 2.5;
+  sLine(ctx, 420, 325, 80);
+  ctx.lineWidth = 0.5;
+  sLine(ctx, 420, 333, 180);
+  ctx.lineWidth = 1.5;
+  sLine(ctx, 420, 350, 150);
+  ctx.lineWidth = 1;
+  sLine(ctx, 420, 368, 100);
+
+  return canvas.toDataURL("image/png").split(",")[1];
+}
+
 // ─── Exports ────────────────────────────────────────────────────────────────
 
 export const DEMO_SKETCHES: DemoSketch[] = [
@@ -394,5 +583,41 @@ export const DEMO_SKETCHES: DemoSketch[] = [
     style: "saas",
     tagline: "Sidebar + metrics + table",
     getImageBase64: drawDashboard,
+  },
+  {
+    id: "card",
+    name: "Business Card",
+    emoji: "",
+    purpose: "card",
+    style: "modern",
+    tagline: "Professional namecard",
+    getImageBase64: drawBusinessCard,
+  },
+  {
+    id: "invitation",
+    name: "Invitation",
+    emoji: "",
+    purpose: "invitation",
+    style: "modern",
+    tagline: "Event invite with RSVP",
+    getImageBase64: drawInvitation,
+  },
+  {
+    id: "menu",
+    name: "Menu",
+    emoji: "",
+    purpose: "menu",
+    style: "modern",
+    tagline: "Restaurant menu layout",
+    getImageBase64: drawMenu,
+  },
+  {
+    id: "resume",
+    name: "Resume",
+    emoji: "",
+    purpose: "resume",
+    style: "modern",
+    tagline: "One-page CV layout",
+    getImageBase64: drawResume,
   },
 ];
